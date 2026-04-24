@@ -1,0 +1,2326 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.png" type="image/png">
+<meta name="theme-color" content="#00E5A0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Viterra">
+<link rel="apple-touch-icon" href="icon.png">
+<title>Viterra · Dashboard Algodão 2026 · Premium</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+
+<style>
+:root {
+  --bg:        #0A0E14;
+  --bg2:       #0F1520;
+  --bg3:       #141C2B;
+  --bg4:       #1A2434;
+  --border:    rgba(255,255,255,0.06);
+  --border2:   rgba(255,255,255,0.12);
+  --text:      #F0F4FF;
+  --text2:     #B0BDD4;
+  --text3:     #7A8DAE;
+  --green:     #00E5A0;
+  --green2:    #00B57E;
+  --blue:      #3B8EF0;
+  --blue2:     #1D5FA5;
+  --amber:     #F5A623;
+  --red:       #FF5C5C;
+  --purple:    #A78BFA;
+  --accent:    #00E5A0;
+  --font-display: 'Inter', sans-serif;
+  --font-body:    'Inter', sans-serif;
+  --font-mono:    'JetBrains Mono', monospace;
+  --r: 10px;
+  --r2: 6px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── LOADING SKELETON ─── */
+.loading-skeleton {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.9);
+  backdrop-filter: blur(10px);
+  z-index: 200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 20px;
+}
+.loading-skeleton.active { display: flex; }
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid var(--bg3);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.loading-text {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--green);
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── G4 ─── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,229,160,.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,160,.02) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 28px 32px; }
+
+/* ─── TOAST NOTIFICATION ─── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  padding: 12px 20px;
+  font-size: 13px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  z-index: 150;
+  transform: translateX(120%);
+  transition: transform 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+.toast.show { transform: translateX(0); }
+.toast.success { border-left: 3px solid var(--green); }
+.toast.error { border-left: 3px solid var(--red); }
+.toast.info { border-left: 3px solid var(--blue); }
+
+/* ─── HEADER ─── */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.header-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--green);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.header-eyebrow::before {
+  content: '';
+  width: 24px; height: 1px;
+  background: var(--green);
+}
+.header-title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -.02em;
+  line-height: 1.1;
+}
+.header-title span { color: var(--green); }
+.header-sub {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 6px;
+  font-weight: 300;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+/* ─── BUTTONS ─── */
+.import-btn, .export-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, var(--green), #00B57E);
+  color: #000;
+  border: none;
+  border-radius: var(--r2);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+  letter-spacing: .01em;
+  white-space: nowrap;
+}
+.export-btn {
+  background: linear-gradient(135deg, var(--blue), var(--blue2));
+}
+.import-btn:hover, .export-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,229,160,.35); }
+.import-btn svg, .export-btn svg { width: 16px; height: 16px; }
+
+.status-dot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text2);
+  padding: 8px 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  cursor: pointer;
+  transition: all .2s;
+}
+.status-dot:hover { border-color: var(--border2); }
+.status-dot::before {
+  content: '';
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+
+/* ─── MODAL ─── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.85);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  padding: 32px;
+  width: 600px;
+  max-width: 96vw;
+  animation: modalIn .25s ease-out;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+@keyframes modalIn { from { opacity:0; transform: translateY(12px) scale(.97); } }
+.modal-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.modal-sub { font-size: 12px; color: var(--text2); margin-bottom: 24px; line-height: 1.6; }
+
+.drop-zone {
+  border: 1.5px dashed var(--border2);
+  border-radius: var(--r);
+  padding: 28px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .2s;
+  margin-bottom: 12px;
+  position: relative;
+}
+.drop-zone:hover, .drop-zone.drag { border-color: var(--green); background: rgba(0,229,160,.04); }
+.drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.drop-icon { font-size: 28px; margin-bottom: 8px; }
+.drop-label { font-size: 13px; color: var(--text2); }
+.drop-label strong { color: var(--text); }
+.drop-hint { font-size: 11px; color: var(--text3); margin-top: 4px; font-family: var(--font-mono); }
+
+.file-list { margin-bottom: 20px; max-height: 200px; overflow-y: auto; }
+.file-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.file-item-icon { font-size: 18px; }
+.file-item-name { flex: 1; color: var(--text); font-weight: 500; }
+.file-item-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(0,229,160,.12);
+  color: var(--green);
+}
+.file-item-tag.b { background: rgba(59,142,240,.12); color: var(--blue); }
+.file-item-remove {
+  background: none; border: none; color: var(--text3);
+  cursor: pointer; font-size: 14px; padding: 2px 4px;
+}
+.file-item-remove:hover { color: var(--red); }
+
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.btn-cancel {
+  padding: 9px 18px; background: var(--bg3); border: 1px solid var(--border2);
+  color: var(--text2); border-radius: var(--r2); cursor: pointer; font-size: 13px;
+  transition: all .15s;
+}
+.btn-cancel:hover { color: var(--text); border-color: var(--border2); }
+.btn-import {
+  padding: 9px 22px; background: var(--green); color: #000;
+  border: none; border-radius: var(--r2); cursor: pointer;
+  font-family: var(--font-display); font-size: 13px; font-weight: 700;
+  transition: all .15s;
+}
+.btn-import:hover { background: #00fdb5; }
+.btn-import:disabled { opacity: .4; cursor: not-allowed; }
+
+.import-status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--green);
+  margin-top: 10px;
+  display: none;
+  text-align: center;
+}
+.import-error {
+  font-size: 11px;
+  color: var(--red);
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(255,92,92,.08);
+  border-radius: var(--r2);
+  display: none;
+}
+
+/* ─── NAV ─── */
+.nav {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 5px;
+  width: fit-content;
+}
+.nb {
+  padding: 8px 20px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all .2s;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+.nb:hover { color: var(--text); background: var(--bg3); }
+.nb.active { background: var(--green); color: #000; }
+
+/* ─── SCREENS ─── */
+.scr { display: none; animation: fadeIn .3s ease-out; }
+.scr.active { display: block; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(6px); } }
+
+/* ─── METRIC CARDS ─── */
+.mets {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+@media (max-width: 900px) { .mets { grid-template-columns: repeat(2,1fr); } }
+.met {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 20px 22px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .2s;
+  cursor: pointer;
+}
+.met::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--green), transparent);
+  opacity: .5;
+}
+.met:hover { border-color: var(--border2); transform: translateY(-2px); transition: all .2s; }
+.ml {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  margin-bottom: 10px;
+}
+.mv {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+  letter-spacing: -.02em;
+}
+.ms { font-size: 11px; color: var(--text2); margin-top: 6px; font-weight: 300; }
+.met-accent { color: var(--green); }
+
+/* ─── SECTION TITLE ─── */
+.stitle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stitle::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ─── CARD ─── */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 22px 24px;
+  margin-bottom: 16px;
+}
+
+/* ─── PROGRESS BARS ─── */
+.pw {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  transition: border-color .2s;
+}
+.pw:hover { border-color: var(--border2); }
+.ph { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; }
+.pb { background: var(--bg4); border-radius: 4px; height: 6px; }
+.pf { border-radius: 4px; height: 6px; transition: width .6s cubic-bezier(.4,0,.2,1); }
+
+/* ─── BADGES ─── */
+.badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 4px;
+  letter-spacing: .04em;
+  font-weight: 500;
+}
+.ok  { background: rgba(0,229,160,.12); color: var(--green); border: 1px solid rgba(0,229,160,.2); }
+.pend { background: rgba(245,166,35,.1); color: var(--amber); border: 1px solid rgba(245,166,35,.2); }
+.prog { background: rgba(59,142,240,.1); color: var(--blue); border: 1px solid rgba(59,142,240,.2); }
+
+/* ─── ALERT ─── */
+.alert-box {
+  display: none;
+  background: rgba(245,166,35,.08);
+  border: 1px solid rgba(245,166,35,.2);
+  border-left: 3px solid var(--amber);
+  border-radius: var(--r2);
+  padding: 12px 16px;
+  font-size: 12px;
+  color: var(--amber);
+  margin-top: 8px;
+}
+
+/* ─── CONTRATO ─── */
+.contrato-card {
+  background: linear-gradient(135deg, var(--bg2) 0%, rgba(59,142,240,.06) 100%);
+  border: 1px solid rgba(59,142,240,.2);
+  border-radius: var(--r);
+  padding: 22px 24px;
+  margin-bottom: 16px;
+}
+.contrato-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+.contrato-name { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
+.contrato-meta { font-size: 12px; color: var(--text2); margin-top: 4px; font-weight: 300; }
+
+/* ─── WEEKLY NAV ─── */
+.wnav { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.wnav button {
+  padding: 7px 14px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  color: var(--text2);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  transition: all .2s;
+}
+.wnav button:hover { border-color: var(--border2); color: var(--text); }
+.wnav button:disabled { opacity: .3; cursor: not-allowed; }
+.wlbl { font-family: var(--font-display); font-size: 14px; font-weight: 700; flex: 1; text-align: center; color: var(--text2); }
+
+/* ─── WEEK GRID ─── */
+.wgr { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; }
+.wd {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .2s;
+}
+.wd:hover { border-color: var(--border2); background: var(--bg3); transform: translateY(-2px); }
+.wd.sel { border-color: var(--green); background: rgba(0,229,160,.06); }
+.wd.empty { opacity: .3; pointer-events: none; }
+.wdn { font-family: var(--font-mono); font-size: 11px; color: var(--text3); margin-bottom: 2px; text-transform: uppercase; letter-spacing: .06em; }
+.wdv { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--text); }
+.wds { font-family: var(--font-mono); font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+/* ─── CARGA ITEM ─── */
+.dr {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+  margin-bottom: 8px;
+  transition: border-color .2s;
+}
+.dr:hover { border-color: var(--border2); }
+.dh {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  cursor: pointer;
+}
+.dh:hover { background: rgba(255,255,255,.02); }
+.db { display: none; padding: 14px 18px; border-top: 1px solid var(--border); background: var(--bg3); }
+.db.open { display: block; }
+.ltag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  margin: 3px;
+}
+.ltag.done { background: rgba(0,229,160,.1); color: var(--green); border: 1px solid rgba(0,229,160,.2); }
+
+/* ─── MAPA ─── */
+.leg { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.li { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--text2); }
+.ld { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+.mr { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+.rl {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  min-width: 50px;
+  color: var(--text3);
+  padding-top: 6px;
+  letter-spacing: .04em;
+}
+.lr { display: flex; flex-wrap: wrap; gap: 4px; }
+.lb {
+  width: 36px; height: 28px;
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: default;
+  position: relative;
+  transition: transform .15s;
+}
+.lb:hover { transform: scale(1.15); z-index: 2; }
+.lb:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: calc(100% + 5px); left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 10;
+  pointer-events: none;
+  color: var(--text);
+}
+
+/* ─── CHART WRAPPER ─── */
+.cw { position: relative; width: 100%; }
+
+/* ─── EMPTY STATE ─── */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: .04em;
+}
+.empty-state-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-state-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--text2); margin-bottom: 8px; }
+
+/* ─── TOUR ─── */
+.tour-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 300;
+  display: none;
+  pointer-events: none;
+}
+.tour-highlight {
+  position: absolute;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.85);
+  border-radius: var(--r);
+  transition: all 0.3s;
+  pointer-events: none;
+}
+.tour-tooltip {
+  position: absolute;
+  background: var(--bg2);
+  border: 1px solid var(--green);
+  border-radius: var(--r);
+  padding: 16px 20px;
+  max-width: 300px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  z-index: 301;
+  pointer-events: auto;
+}
+.tour-tooltip button {
+  margin-top: 12px;
+  padding: 6px 16px;
+  background: var(--green);
+  border: none;
+  border-radius: var(--r2);
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 700px) {
+  .app { padding: 16px; }
+  .header-title { font-size: 20px; }
+  .nav { flex-wrap: wrap; }
+  .nb { padding: 7px 12px; font-size: 11px; }
+  .wgr { gap: 6px; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING SKELETON -->
+<div class="loading-skeleton" id="loadingSkeleton">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Processando dados...</div>
+</div>
+
+<!-- TOAST NOTIFICATION -->
+<div id="toast" class="toast"></div>
+
+<!-- TOUR OVERLAY -->
+<div id="tourOverlay" class="tour-overlay"></div>
+<div id="tourTooltip" class="tour-tooltip" style="display: none;"></div>
+
+<!-- IMPORT MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title">📥 Importar Planilhas</div>
+    <p class="modal-sub">
+      Selecione as <strong>duas planilhas</strong> exportadas do sistema para atualizar o dashboard.<br>
+      Aceita os dois arquivos Excel: <code style="color:var(--green);font-size:11px;">Contratos de Algodão</code> e <code style="color:var(--blue);font-size:11px;">Instruções de Carregamento</code> — arraste e solte ou clique para escolher.
+    </p>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" multiple accept=".csv,.xlsx,.xls">
+      <div class="drop-icon">📂</div>
+      <div class="drop-label"><strong>Arraste os arquivos aqui</strong></div>
+      <div class="drop-hint">Lotes em vermelho/tachado na instrução = já carregados · max 2 arquivos</div>
+    </div>
+
+    <div class="file-list" id="fileList"></div>
+    <div class="import-error" id="importError"></div>
+    <div class="import-status" id="importStatus"></div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-import" id="btnImport" disabled onclick="processImport()">
+        Atualizar Dashboard
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-eyebrow">Carregamento Algodão · 2026</div>
+      <div class="header-title">VITERRA <span>·</span> VTSA01731/25</div>
+      <div class="header-sub">Entrega Abr–Jun/2026 &nbsp;·&nbsp; 30.813 fardos comprometidos &nbsp;·&nbsp; Algodoeira Instrucoes</div>
+    </div>
+    <div class="header-right">
+      <div class="status-dot" id="statusDot" onclick="showTour()">🎓 TOUR</div>
+      <button class="export-btn" style="background:linear-gradient(135deg,#FF5C5C,#c0392b);" onclick="resetAndReload()" title="Limpa o cache e recarrega dados padrão">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M2 8a6 6 0 1 0 1.5-3.9M2 2v4h4"/>
+        </svg>
+        Resetar Cache
+      </button>
+      <button class="export-btn" onclick="exportData()">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M8 2v8M4 6l4 4 4-4M2 12h12"/>
+        </svg>
+        Exportar Dados
+      </button>
+      <button class="import-btn" onclick="openModal()">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M8 2v8M4 7l4 4 4-4M2 12h12"/>
+        </svg>
+        Importar Planilhas
+      </button>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <div class="nav">
+    <button class="nb active" onclick="S('dash')">Visão Geral</button>
+    <button class="nb" onclick="S('diario')">Carregamento Diário</button>
+    <button class="nb" onclick="S('mapa')">Mapa de Lotes</button>
+    <button class="nb" onclick="S('graf')">Gráficos</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="scr-dash" class="scr active">
+    <div class="mets" id="top-mets"></div>
+    <p class="stitle">Status por instrução de embarque</p>
+    <div class="card" id="ie-progs"></div>
+    <p class="stitle">Contrato</p>
+    <div class="contrato-card">
+      <div class="contrato-head">
+        <div>
+          <div class="contrato-name">VITERRA · VTSA01731/25</div>
+          <div class="contrato-meta">Entrega Abr–Jun/2026 · 30.813 fardos comprometidos</div>
+        </div>
+        <span class="badge prog" id="contrato-badge">EMBARCANDO</span>
+      </div>
+      <div class="pb"><div class="pf" id="contrato-bar" style="background: linear-gradient(90deg, var(--blue), var(--blue2));"></div></div>
+      <div style="display:flex;justify-content:space-between;margin-top:8px;font-family:var(--font-mono);font-size:11px;color:var(--text3);" id="contrato-leg"></div>
+      <div id="progresso-contrato"></div>
+    </div>
+    <div class="alert-box" id="pend-alert"></div>
+  </div>
+
+  <!-- DIÁRIO -->
+  <div id="scr-diario" class="scr">
+    <div class="wnav">
+      <button onclick="pW()" id="btn-prev">← Ant.</button>
+      <div class="wlbl" id="wlbl"></div>
+      <button onclick="nW()" id="btn-next">Próx. →</button>
+    </div>
+    <div class="wgr" id="wgr"></div>
+    <p class="stitle" id="dtitle">Cargas do dia</p>
+    <div id="dcont"></div>
+  </div>
+
+  <!-- MAPA -->
+  <div id="scr-mapa" class="scr">
+    <div class="leg" id="mleg"></div>
+    <div style="display:flex;gap:18px;margin-bottom:14px;flex-wrap:wrap;">
+      <div class="li"><div class="ld" style="background:var(--green);"></div><span>Cor intensa = concluído</span></div>
+      <div class="li"><div class="ld" style="background:var(--bg4);border:1px solid var(--border2);opacity:.5;"></div><span>Cor suave = pendente</span></div>
+      <div class="li"><div class="ld" style="background:var(--bg3);border:1px solid var(--border);"></div><span>Sem IE atribuída</span></div>
+    </div>
+    <div class="card" style="padding:16px 20px; max-height: 60vh; overflow-y: auto;"><div id="mapcont"></div></div>
+  </div>
+
+  <!-- GRÁFICOS -->
+  <div id="scr-graf" class="scr">
+    <div class="mets" id="graf-mets">
+      <div class="met"><div class="ml">Média fardos/dia</div><div class="mv" id="avg-f">—</div><div class="ms">média por dia útil</div></div>
+      <div class="met"><div class="ml">Média cargas/dia</div><div class="mv" id="avg-c">—</div><div class="ms">caminhões por dia</div></div>
+      <div class="met"><div class="ml">Melhor dia</div><div class="mv" id="best-v">—</div><div class="ms" id="best-d"></div></div>
+      <div class="met"><div class="ml">Período</div><div class="mv" style="font-size:18px;" id="graf-period">—</div><div class="ms">Viterra 2026</div></div>
+    </div>
+    <div class="card">
+      <p class="stitle">Fardos por dia + nº cargas</p>
+      <div style="display:flex;gap:16px;margin-bottom:10px;font-size:12px;color:var(--text2);" id="chart-leg"></div>
+      <div class="cw" style="height:240px;"><canvas id="ch1"></canvas></div>
+    </div>
+    <div class="card" style="margin-top:14px;">
+      <p class="stitle">Distribuição por instrução de embarque</p>
+      <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:center;">
+        <div class="cw" style="height:200px;width:200px;min-width:180px;"><canvas id="ch2"></canvas></div>
+        <div id="ie-leg" style="flex:1;min-width:180px;"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  STORAGE KEYS
+// ═══════════════════════════════════════════════════════════
+const STORAGE_KEYS = {
+  IES: 'viterra_ies',
+  MAPA: 'viterra_mapa',
+  CARGAS: 'viterra_cargas'
+};
+
+// ═══════════════════════════════════════════════════════════
+//  DEFAULT DATA
+// ═══════════════════════════════════════════════════════════
+const DEFAULT_IES = [
+  {name:'BRZ505/25', color:'#92D050', total_fardos:2090, done_fardos:2090, total_lotes:19, done_lotes:19,
+   lotes_done:[3,6,13,25,221,236,243,252,257,284,286,287,293,305,324,331,332,343,346], lotes_pend:[],
+   lotes_fardos:{3:110,6:110,13:110,25:110,221:110,236:110,243:110,252:110,257:110,284:110,286:110,287:110,293:110,305:110,324:110,331:110,332:110,343:110,346:110}},
+  {name:'BRZ506/25', color:'#A6C9EC', total_fardos:1891, done_fardos:1891, total_lotes:19, done_lotes:19,
+   lotes_done:[14,17,27,32,33,63,244,271,275,279,299,300,312,333,334,337,338,342,347], lotes_pend:[],
+   lotes_fardos:{14:110,17:110,27:110,32:110,33:110,63:110,244:72,271:110,275:110,279:110,299:110,300:110,312:21,333:110,334:110,337:110,338:110,342:110,347:62}},
+  {name:'BRZ507/25', color:'#F5A623', total_fardos:2200, done_fardos:2200, total_lotes:20, done_lotes:20,
+   lotes_done:[56,245,246,247,248,260,266,267,270,272,273,276,278,302,303,304,307,308,311,319], lotes_pend:[],
+   lotes_fardos:{56:110,245:110,246:110,247:110,248:110,260:110,266:110,267:110,270:110,272:110,273:110,276:110,278:110,302:110,303:110,304:110,307:110,308:110,311:110,319:110}},
+  {name:'BRZ508/25', color:'#FF7A5C', total_fardos:1069, done_fardos:1069, total_lotes:12, done_lotes:12,
+   lotes_done:[9,251,261,274,283,289,310,317,318,335,339,340], lotes_pend:[],
+   lotes_fardos:{9:110,251:48,261:42,274:110,283:54,289:110,310:110,317:110,318:110,335:110,339:54,340:110}},
+  {name:'BRZ509/25', color:'#FF6B9D', total_fardos:330, done_fardos:330, total_lotes:3, done_lotes:3,
+   lotes_done:[7,10,265], lotes_pend:[],
+   lotes_fardos:{7:110,10:110,265:110}},
+  {name:'BRZ521/25', color:'#A78BFA', total_fardos:880, done_fardos:880, total_lotes:8, done_lotes:8,
+   lotes_done:[211,220,229,231,309,314,315,322], lotes_pend:[],
+   lotes_fardos:{211:110,220:110,229:110,231:110,309:110,314:110,315:110,322:110}},
+  {name:'BRZ532/25', color:'#34D399', total_fardos:220, done_fardos:220, total_lotes:2, done_lotes:2,
+   lotes_done:[50,320], lotes_pend:[],
+   lotes_fardos:{50:110,320:110}},
+  {name:'BRZ536/25', color:'#FBBF24', total_fardos:1433, done_fardos:1103, total_lotes:14, done_lotes:11,
+   lotes_done:[22,26,34,261,277,280,281,282,285,288,292,294], lotes_pend:[282,336,344],
+   lotes_fardos:{22:110,26:110,34:110,261:3,277:110,280:110,281:90,282:75,285:110,288:110,292:110,294:110,336:110,344:110}},
+];
+
+const DEFAULT_MAPA = {
+  'RUA A': {lotes:[298,306,310,313,318,320,321,325,327,329,330,333,334,335,336,340], done:[310,318,320,333,334,335,340]},
+  'RUA B': {lotes:[290,304,305,307,308,309,311,314,315,316,317,319,322,326], done:[7,10,287,304,305,307,308,309,311,314,315,317,319,322]},
+  'RUA C': {lotes:[1,38,63,200,220,233,236,239,242,243,244,296,323,331,332,337,338,342,344,346], done:[63,220,236,243,244,331,332,337,338,342,346]},
+  'RUA D': {lotes:[34,199,201,202,209,210,211,235,261,269,285,293,324,339,343,347,348], done:[34,211,261,285,293,324,339,343,347]},
+  'RUA E': {lotes:[46,50,173,212,252,253,254,257,260,270,271,272,276,279,280,284,286,292,294,299], done:[50,252,257,260,270,271,272,276,279,284,286,292,294,299]},
+  'RUA F': {lotes:[22,24,25,27,28,31,32,33,56,186,194,248,256,264,265,277,288,289,302,303], done:[22,25,27,32,33,56,248,265,277,288,289,302,303]},
+  'RUA G': {lotes:[3,6,8,9,12,13,14,17,23,26,130,190,191,192,196,197,198,204,206,216,217,218,219,221,222,295], done:[3,6,9,13,14,17,26,221]},
+  'RUA H': {lotes:[189,223,224,225,226,227,229,230,231,232,234], done:[229,231]},
+  'RUA I': {lotes:[95,98,101,102,103,104,105,106,107,108,109,110,111,112,114,115,116,117,118,119,129,132,134,135,137,138,139,140,142,143,145,146,147,168,174,178,180,181,182,184,185], done:[]},
+  'RUA J': {lotes:[62,83,97,113,120,121,122,123,131,133,136,144,148,164,165,166,167,169,170,171,172,175,176,177,179,183,205,214,215,241,245,246,249,250,251,255,262,263,266,267,268,273,274,275,281,282,283,300,312,345,349,350], done:[245,246,267,273,274,275,281,283,300,312]},
+  'RUA K': {lotes:[66,71,84,86,88,89,90,91,92,93,94,96,99,100,124,125,126,127,128,141,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,187,188,228,237,238,240,247,258,259,278,291,297,301], done:[247,278]},
+  'RUA M': {lotes:[207,208,213], done:[]},
+};
+
+const DEFAULT_CARGAS = [
+  {n:1,dt:'2026-04-07',lotes:'3,6',fds:[110,110],liq:50480},
+  {n:2,dt:'2026-04-07',lotes:'17,244',fds:[110,25],liq:31265},
+  {n:3,dt:'2026-04-07',lotes:'346,332',fds:[110,25],liq:29965},
+  {n:4,dt:'2026-04-08',lotes:'305,332',fds:[110,25],liq:30445},
+  {n:5,dt:'2026-04-08',lotes:'293,343',fds:[110,110],liq:50180},
+  {n:6,dt:'2026-04-08',lotes:'14,244',fds:[110,25],liq:31305},
+  {n:7,dt:'2026-04-08',lotes:'284,332',fds:[110,30],liq:31380},
+  {n:8,dt:'2026-04-08',lotes:'286,332',fds:[110,30],liq:31700},
+  {n:9,dt:'2026-04-08',lotes:'32,33',fds:[110,110],liq:49380},
+  {n:10,dt:'2026-04-09',lotes:'252,324',fds:[110,110],liq:49860},
+  {n:11,dt:'2026-04-09',lotes:'63,334',fds:[110,110],liq:49560},
+  {n:12,dt:'2026-04-09',lotes:'338,342',fds:[110,110],liq:50160},
+  {n:13,dt:'2026-04-09',lotes:'300,333',fds:[110,110],liq:49480},
+  {n:14,dt:'2026-04-09',lotes:'243,287',fds:[110,110],liq:50240},
+  {n:15,dt:'2026-04-09',lotes:'25,221',fds:[110,110],liq:50520},
+  {n:16,dt:'2026-04-10',lotes:'27,275',fds:[110,110],liq:50520},
+  {n:17,dt:'2026-04-10',lotes:'13,331',fds:[110,110],liq:50380},
+  {n:18,dt:'2026-04-10',lotes:'279,312',fds:[110,21],liq:30009},
+  {n:19,dt:'2026-04-10',lotes:'271,299',fds:[110,110],liq:49380},
+  {n:20,dt:'2026-04-10',lotes:'308,311',fds:[110,110],liq:50020},
+  {n:21,dt:'2026-04-10',lotes:'236,257',fds:[110,110],liq:49880},
+  {n:22,dt:'2026-04-13',lotes:'260,276',fds:[110,110],liq:50620},
+  {n:23,dt:'2026-04-13',lotes:'337,347,244',fds:[110,62,47],liq:50221},
+  {n:24,dt:'2026-04-13',lotes:'302,307',fds:[110,110],liq:49520},
+  {n:25,dt:'2026-04-13',lotes:'270,278',fds:[110,110],liq:49920},
+  {n:26,dt:'2026-04-14',lotes:'56,303',fds:[110,110],liq:49880},
+  {n:27,dt:'2026-04-14',lotes:'304,319',fds:[110,110],liq:49260},
+  {n:28,dt:'2026-04-15',lotes:'265',fds:[110],liq:25570},
+  {n:29,dt:'2026-04-15',lotes:'248,272',fds:[110,110],liq:51080},
+  {n:30,dt:'2026-04-15',lotes:'283,289,339',fds:[54,110,54],liq:49662},
+  {n:31,dt:'2026-04-15',lotes:'9,251,283,310,312',fds:[4,48,56,110,1],liq:50241},
+  {n:32,dt:'2026-04-15',lotes:'9,261,318',fds:[66,42,110],liq:50302},
+  {n:33,dt:'2026-04-16',lotes:'245,246',fds:[110,110],liq:51180},
+  {n:34,dt:'2026-04-16',lotes:'317,335',fds:[110,110],liq:50360},
+  {n:35,dt:'2026-04-16',lotes:'247,266',fds:[110,110],liq:50860},
+  {n:36,dt:'2026-04-16',lotes:'274,340',fds:[108,110],liq:50062,obs:'data inválida na planilha (16/14)'},
+  {n:37,dt:'2026-04-17',lotes:'267,273',fds:[110,110],liq:50320},
+  {n:38,dt:'2026-04-17',lotes:'7,10',fds:[110,110],liq:50040},
+  {n:39,dt:'2026-04-20',lotes:'285',fds:[110],liq:25070},
+  {n:40,dt:'2026-04-20',lotes:'288',fds:[110],liq:24830},
+  {n:41,dt:'2026-04-20',lotes:'26,282',fds:[110,30],liq:31880},
+  {n:42,dt:'2026-04-20',lotes:'34,261,281,282',fds:[110,3,20,7],liq:31920},
+  {n:43,dt:'2026-04-20',lotes:'22,281',fds:[110,50],liq:36980},
+  {n:44,dt:'2026-04-21',lotes:'315,322',fds:[110,110],liq:50100},
+  {n:45,dt:'2026-04-21',lotes:'309,211',fds:[110,68],liq:40202},
+  {n:46,dt:'2026-04-21',lotes:'9,274',fds:[40,2],liq:9678},
+  {n:47,dt:'2026-04-21',lotes:'229,231',fds:[110,110],liq:50740},
+  {n:48,dt:'2026-04-21',lotes:'280,281',fds:[110,20],liq:29390},
+  {n:49,dt:'2026-04-21',lotes:'277,281',fds:[110,20],liq:29730},
+  {n:50,dt:'2026-04-22',lotes:'294,282,336',fds:[110,30,10],liq:34390},
+  {n:51,dt:'2026-04-22',lotes:'292,282',fds:[110,38],liq:33732},
+  {n:52,dt:'2026-04-22',lotes:'50,320',fds:[110,110],liq:49640},
+  {n:53,dt:'2026-04-22',lotes:'220,314',fds:[110,110],liq:49700},
+  {n:54,dt:'2026-04-22',lotes:'211',fds:[42],liq:9498},
+];
+
+// ═══════════════════════════════════════════════════════════
+//  ACTIVE DATA (com localStorage)
+// ═══════════════════════════════════════════════════════════
+let IES = [];
+let MAPA = {};
+let CARGAS = [];
+
+// Helper: show toast notification
+function showToast(message, type = 'info') {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.className = `toast ${type} show`;
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// Helper: show/hide loading skeleton
+function setLoading(show, text = 'Processando dados...') {
+  const el = document.getElementById('loadingSkeleton');
+  const textEl = el.querySelector('.loading-text');
+  if (textEl) textEl.textContent = text;
+  if (show) el.classList.add('active');
+  else el.classList.remove('active');
+}
+
+// Load data from localStorage
+function loadFromStorage() {
+  const storedIES = localStorage.getItem(STORAGE_KEYS.IES);
+  const storedMapa = localStorage.getItem(STORAGE_KEYS.MAPA);
+  const storedCargas = localStorage.getItem(STORAGE_KEYS.CARGAS);
+  
+  if (storedIES && storedMapa && storedCargas) {
+    IES = JSON.parse(storedIES);
+    MAPA = JSON.parse(storedMapa);
+    CARGAS = JSON.parse(storedCargas);
+    document.getElementById('statusDot').innerHTML = `📅 ${new Date().toLocaleDateString('pt-BR')}`;
+    showToast('Dados carregados do cache', 'success');
+    return true;
+  }
+  return false;
+}
+
+// Save data to localStorage
+function saveToStorage() {
+  localStorage.setItem(STORAGE_KEYS.IES, JSON.stringify(IES));
+  localStorage.setItem(STORAGE_KEYS.MAPA, JSON.stringify(MAPA));
+  localStorage.setItem(STORAGE_KEYS.CARGAS, JSON.stringify(CARGAS));
+  document.getElementById('statusDot').innerHTML = `💾 ${new Date().toLocaleDateString('pt-BR')}`;
+  showToast('Dados salvos automaticamente', 'success');
+}
+
+// Reset to default data
+function resetToDefault() {
+  IES = JSON.parse(JSON.stringify(DEFAULT_IES));
+  MAPA = JSON.parse(JSON.stringify(DEFAULT_MAPA));
+  CARGAS = JSON.parse(JSON.stringify(DEFAULT_CARGAS));
+  saveToStorage();
+  showToast('Dados restaurados para versão padrão', 'info');
+}
+
+function resetAndReload() {
+  if (!confirm('Isso vai limpar o cache e recarregar os dados padrão do arquivo. Continuar?')) return;
+  localStorage.removeItem('viterra_ies');
+  localStorage.removeItem('viterra_mapa');
+  localStorage.removeItem('viterra_cargas');
+  IES = JSON.parse(JSON.stringify(DEFAULT_IES));
+  MAPA = JSON.parse(JSON.stringify(DEFAULT_MAPA));
+  CARGAS = JSON.parse(JSON.stringify(DEFAULT_CARGAS));
+  saveToStorage();
+  WEEKS = rebuildWeeks();
+  rebuildLoteIE();
+  if (CARGAS.length && IES.length) { crossReferenceIEsWithCargas(); rebuildLoteIE(); }
+  updateMapaFromIES();
+  if (CARGAS.length) selDay = CARGAS[0].dt;
+  curWeek = 0; grafOk = false; destroyCharts();
+  renderDash();
+  showToast('Cache limpo! Dados padrão recarregados.', 'success');
+}
+
+// ========== HELPER FUNCTIONS ==========
+function getBusinessDaysBetween(startDate, endDate) {
+  let count = 0;
+  const current = new Date(startDate);
+  const end = new Date(endDate);
+  while (current <= end) {
+    const day = current.getDay();
+    if (day !== 0 && day !== 6) count++;
+    current.setDate(current.getDate() + 1);
+  }
+  return count;
+}
+
+function rebuildWeeks() {
+  const dates = [...new Set(CARGAS.map(c=>c.dt))].sort();
+  if (!dates.length) return [['','','','','']];
+  const msDay = 86400000;
+  let weekMap = {};
+  dates.forEach(dt => {
+    const d = new Date(dt+'T12:00:00');
+    const day = d.getDay();
+    if (day===0||day===6) return;
+    const mon = new Date(d.getTime() - (day-1)*msDay);
+    const key = mon.toISOString().slice(0,10);
+    if (!weekMap[key]) weekMap[key] = [];
+    weekMap[key].push(dt);
+  });
+  return Object.keys(weekMap).sort().map(monKey => {
+    const mon = new Date(monKey+'T12:00:00');
+    const wk = [];
+    for(let i=0;i<5;i++){
+      const d = new Date(mon.getTime()+i*msDay);
+      wk.push(d.toISOString().slice(0,10));
+    }
+    return wk;
+  });
+}
+
+let WEEKS = [];
+const DNAMES = ['Seg','Ter','Qua','Qui','Sex'];
+
+// LOTE_IE lookup
+let LOTE_IE = {};
+function rebuildLoteIE() {
+  LOTE_IE = {};
+  IES.forEach(ie => {
+    [...ie.lotes_done, ...ie.lotes_pend].forEach(l => {
+      LOTE_IE[l] = {ie, done: ie.lotes_done.includes(l)};
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CRUZAMENTO: usa os lotes das CARGAS para dar baixa nas IEs
+//  Regra: coluna G = "312,20,114"  →  lotes[0]=312, lotes[1]=20, lotes[2]=114
+//         colunas H..L = fardos de cada lote na mesma ordem
+//  Todo lote presente em CARGAS é marcado como "done" na IE correspondente,
+//  e sua quantidade de fardos é atualizada para refletir o que foi carregado.
+// ═══════════════════════════════════════════════════════════
+function crossReferenceIEsWithCargas() {
+  if (!CARGAS.length || !IES.length) return;
+
+  // Conjunto global de lotes presentes no contrato (para detectar baixas)
+  const lotesNoContrato = new Set();
+  CARGAS.forEach(carga => {
+    carga.lotes.toString().split(',').map(l => parseInt(l.trim())).filter(l => l > 0)
+      .forEach(l => lotesNoContrato.add(l));
+  });
+
+  let totalDados = 0;
+
+  IES.forEach(ie => {
+    if (!ie.lotes_fardos) ie.lotes_fardos = {};
+    const lotesDaIE = new Set([...ie.lotes_done, ...ie.lotes_pend]);
+
+    // Dar baixa em lotes pendentes que aparecem no contrato
+    const aindaPend = [];
+    ie.lotes_pend.forEach(loteNum => {
+      if (lotesNoContrato.has(loteNum)) {
+        if (!ie.lotes_done.includes(loteNum)) {
+          ie.lotes_done.push(loteNum);
+          ie.done_lotes++;
+          totalDados++;
+        }
+      } else {
+        aindaPend.push(loteNum);
+      }
+    });
+    ie.lotes_pend = aindaPend;
+
+    // Recalcula done_fardos usando lotes_fardos da instrução como fonte da verdade.
+    // lotes_fardos[lote] = fardos que a INSTRUÇÃO autorizou para esse lote nesta IE.
+    // Isso resolve o caso de lotes compartilhados entre IEs com quantidades diferentes
+    // (ex: lote 261 → BRZ508=42 fardos, BRZ536=3 fardos).
+    // Fallback: se a instrução não tiver o valor, soma pelas cargas filtradas por IE.
+    let doneFardosRecalc = 0;
+    ie.lotes_done.forEach(loteNum => {
+      if (ie.lotes_fardos[loteNum] != null) {
+        // Usa o valor que a instrução define para este lote nesta IE
+        doneFardosRecalc += ie.lotes_fardos[loteNum];
+      } else {
+        // Fallback: soma fardos deste lote apenas nas cargas onde ele pertence a esta IE
+        let fardosDaCarga = 0;
+        CARGAS.forEach(carga => {
+          const lotesParts = carga.lotes.toString().split(',').map(l => parseInt(l.trim())).filter(l => l > 0);
+          const idx = lotesParts.indexOf(loteNum);
+          if (idx < 0) return;
+          // Só conta se pelo menos um outro lote da carga pertence a esta IE
+          const algumLoteDaIE = lotesParts.some(l => lotesDaIE.has(l));
+          if (!algumLoteDaIE) return;
+          fardosDaCarga += (carga.fds && carga.fds[idx] != null) ? carga.fds[idx] : 110;
+        });
+        doneFardosRecalc += fardosDaCarga || 110;
+      }
+    });
+    ie.done_fardos = doneFardosRecalc;
+    ie.done_lotes = ie.lotes_done.length;
+  });
+
+  if (totalDados > 0) {
+    showToast(`✓ ${totalDados} lote(s) baixado(s) automaticamente via contratos`, 'success');
+  }
+}
+
+// Update MAPA done status based on current IES
+function updateMapaFromIES() {
+  Object.keys(MAPA).forEach(rua => {
+    MAPA[rua].done = MAPA[rua].lotes.filter(l => LOTE_IE[l]?.done === true);
+  });
+}
+
+// ========== EXPORT DATA ==========
+function exportData() {
+  const exportObj = {
+    exportDate: new Date().toISOString(),
+    ies: IES,
+    mapa: MAPA,
+    cargas: CARGAS
+  };
+  const dataStr = JSON.stringify(exportObj, null, 2);
+  const blob = new Blob([dataStr], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `viterra_backup_${new Date().toISOString().slice(0,19)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Dados exportados com sucesso!', 'success');
+}
+
+// ========== TOUR ==========
+let tourStep = 0;
+const tourSteps = [
+  { selector: '.status-dot', title: 'Status', content: 'Aqui você vê quando os dados foram atualizados pela última vez. Clique para reiniciar o tour!' },
+  { selector: '.import-btn', title: 'Importar Planilhas', content: 'Clique aqui para importar novas planilhas CSV ou XLSX com dados atualizados.' },
+  { selector: '.export-btn', title: 'Exportar Backup', content: 'Exporte todos os dados para backup ou compartilhamento.' },
+  { selector: '.nav', title: 'Navegação', content: 'Navegue entre Visão Geral, Carregamento Diário, Mapa de Lotes e Gráficos.' },
+  { selector: '#top-mets .met:first-child', title: 'Métricas Principais', content: 'Acompanhe os principais indicadores do carregamento.' }
+];
+function showTour() {
+  tourStep = 0;
+  showTourStep();
+}
+function showTourStep() {
+  if (tourStep >= tourSteps.length) {
+    document.getElementById('tourOverlay').style.display = 'none';
+    document.getElementById('tourTooltip').style.display = 'none';
+    showToast('Tour finalizado!', 'success');
+    return;
+  }
+  const step = tourSteps[tourStep];
+  const element = document.querySelector(step.selector);
+  if (!element) {
+    tourStep++;
+    showTourStep();
+    return;
+  }
+  const rect = element.getBoundingClientRect();
+  const overlay = document.getElementById('tourOverlay');
+  const tooltip = document.getElementById('tourTooltip');
+  overlay.style.display = 'block';
+  tooltip.style.display = 'block';
+  tooltip.innerHTML = `<strong>${step.title}</strong><br>${step.content}<br><button onclick="nextTourStep()">Próximo →</button>`;
+  tooltip.style.top = `${rect.bottom + 10}px`;
+  tooltip.style.left = `${rect.left}px`;
+}
+function nextTourStep() {
+  tourStep++;
+  showTourStep();
+}
+
+// ========== PARSING FUNCTIONS ==========
+
+// Converte data de vários formatos para YYYY-MM-DD
+function parseDate(val) {
+  if (!val && val !== 0) return '';
+  // Objeto Date nativo (SheetJS pode retornar isso)
+  if (val instanceof Date) {
+    if (isNaN(val.getTime())) return '';
+    return val.toISOString().slice(0, 10);
+  }
+  // Excel serial number (número inteiro grande)
+  if (typeof val === 'number' && val > 40000) {
+    const d = new Date(Math.round((val - 25569) * 86400 * 1000));
+    return d.toISOString().slice(0, 10);
+  }
+  const s = val.toString().trim();
+  // Formato JS/ISO: "2026-04-07 00:00:00" ou "2026-04-07T..."
+  const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m2) return `${m2[1]}-${m2[2]}-${m2[3]}`;
+  // dd/mm/yyyy
+  const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m1) return `${m1[3]}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}`;
+  // Tenta Date.parse como fallback
+  const ts = Date.parse(s);
+  if (!isNaN(ts)) return new Date(ts).toISOString().slice(0, 10);
+  return '';
+}
+
+// Lê XLSX como matriz de arrays brutos (sem header automático)
+function readXlsxRaw(data) {
+  const workbook = XLSX.read(data, { type: 'array', cellStyles: true, cellDates: true });
+  const results = {};
+  workbook.SheetNames.forEach(name => {
+    const sheet = workbook.Sheets[name];
+    results[name] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+  });
+  return { workbook, results };
+}
+
+// ── Detecta e parseia planilha de CARGAS (Contratos_de_Algodão…)
+// Estrutura real VITERRA: duas linhas de cabeçalho
+//   R58: [No de Cargas | Data Carregamento | Contrato | Classif | _ | Peso Liq | Romaneio | ...]
+//   R59: [_ | _ | _ | Savana | LDC | _ | Lote(s) | Qtidade Fds | ...]
+//   R60+: dados (col A=nº, B=data, F=peso, G=lotes, H/I/J/K/L=fardos por lote)
+function parseCargasFromRaw(rows2d) {
+  const result = [];
+
+  // ── Estratégia 1: localiza as duas linhas de cabeçalho por texto
+  let mainHdr = -1, subHdr = -1;
+
+  for (let i = 0; i < rows2d.length; i++) {
+    const r = rows2d[i].map(v => (v || '').toString().toLowerCase().trim());
+    const hasNoCarga  = r.some(v => v.includes('no de') || v.includes('nº') || (v.includes('carga') && r.some(x => x.includes('data'))));
+    const hasDataCarg = r.some(v => v.includes('data carregamento') || (v === 'data' && r.some(x => x.includes('carga'))));
+    const hasDataAlone= r.some(v => v === 'data carregamento' || v === 'data');
+    
+    if (hasDataCarg || hasDataAlone || hasNoCarga) {
+      // Verifica se tem sub-header com "lote" na linha seguinte
+      if (i + 1 < rows2d.length) {
+        const next = rows2d[i + 1].map(v => (v || '').toString().toLowerCase().trim());
+        if (next.some(v => v.includes('lote'))) {
+          mainHdr = i; subHdr = i + 1; break;
+        }
+      }
+      // Sub-header na mesma linha (caso já tenha lote)
+      if (r.some(v => v.includes('lote'))) {
+        mainHdr = i; subHdr = i; break;
+      }
+    }
+  }
+
+  // ── Estratégia 2: procura linha que tenha "data" E próxima com "lote"
+  if (mainHdr < 0) {
+    for (let i = 0; i < rows2d.length - 1; i++) {
+      const r = rows2d[i].map(v => (v||'').toString().toLowerCase());
+      const n = rows2d[i+1].map(v => (v||'').toString().toLowerCase());
+      if (r.some(v => v.includes('data')) && n.some(v => v.includes('lote'))) {
+        mainHdr = i; subHdr = i + 1; break;
+      }
+    }
+  }
+
+  // ── Estratégia 3: detecta pela posição — encontra primeira linha onde col A é inteiro
+  //    e col B é uma data, e col G tem texto parecendo lotes
+  //    (funciona mesmo sem headers)
+  if (mainHdr < 0) {
+    for (let i = 0; i < rows2d.length; i++) {
+      const r = rows2d[i];
+      const n = parseInt(r[0]);
+      if (!n || n < 1 || n > 999) continue;
+      const dtRaw = parseDate(r[1]);
+      if (!dtRaw) continue;
+      const loteRaw = (r[6] || '').toString().trim();
+      if (!loteRaw) continue;
+      // Encontrou linha de dados sem cabeçalho — usa posição fixa
+      mainHdr = i - 1; subHdr = -1;
+      // Usa posições fixas baseadas na estrutura real
+      const dataStart = i;
+      return _parseCargasFixed(rows2d, dataStart, 0, 1, 5, 6, 7);
+    }
+  }
+
+  if (mainHdr < 0) return [];
+
+  // Combina os dois headers para mapear colunas
+  const h1 = rows2d[mainHdr].map(v => (v||'').toString().toLowerCase().trim());
+  const h2 = subHdr >= 0 && subHdr !== mainHdr
+    ? rows2d[subHdr].map(v => (v||'').toString().toLowerCase().trim())
+    : h1;
+
+  const maxCols = Math.max(h1.length, h2.length);
+  const combined = Array.from({length: maxCols}, (_, c) => (h1[c]||'') + '|' + (h2[c]||''));
+
+  const fc = (pats) => combined.findIndex(h => pats.some(p => h.includes(p)));
+
+  const colN    = fc(['no de carg','no de   carg','nº de carg','n° de carg','n de carg','no de|','nº|']);
+  const colDt   = fc(['data carregamento','data|']);
+  const colLiq  = fc(['peso liq','liq. (','liq.(','peso l|']);
+  const colLote = fc(['lote(s)','|lote(s)','lote|','lotes|','|lotes']);
+  const colFds  = fc(['qtidade fds','qtd fds','|qtidade fds','fds|','|qtidade']);
+
+  // Se não achou coluna de data, tenta só "data" em qualquer posição
+  const colDtFinal = colDt >= 0 ? colDt : h1.findIndex(v => v.includes('data'));
+  const colLoteFinal = colLote >= 0 ? colLote : h2.findIndex(v => v.includes('lote'));
+
+  if (colDtFinal < 0 || colLoteFinal < 0) {
+    // Fallback: tenta posições fixas da planilha VITERRA (col A=0,B=1,F=5,G=6,H=7)
+    const dataStart = (subHdr >= 0 ? subHdr : mainHdr) + 1;
+    return _parseCargasFixed(rows2d, dataStart, 0, 1, 5, 6, 7);
+  }
+
+  const dataStart = (subHdr >= 0 && subHdr !== mainHdr ? subHdr : mainHdr) + 1;
+  return _parseCargasFixed(rows2d, dataStart, colN >= 0 ? colN : 0, colDtFinal, colLiq >= 0 ? colLiq : 5, colLoteFinal, colFds >= 0 ? colFds : colLoteFinal + 1);
+}
+
+// Parseia cargas com colunas já conhecidas por índice
+function _parseCargasFixed(rows2d, dataStart, colN, colDt, colLiq, colLote, colFds) {
+  const result = [];
+  for (let i = dataStart; i < rows2d.length; i++) {
+    const row = rows2d[i];
+    // Nº da carga: deve ser inteiro 1..999
+    const numRaw = row[colN];
+    const num = parseInt(typeof numRaw === 'number' ? numRaw : (numRaw||'').toString());
+    if (!num || num < 1 || num > 9999) continue;
+
+    // Data: deve ser válida
+    const dtRaw = row[colDt];
+    const dt = parseDate(dtRaw);
+    if (!dt) continue;
+
+    // Lotes: normaliza float do Excel (3.6 → "3,6") e espaços
+    const lotesRaw = row[colLote];
+    let lotesStr;
+    if (typeof lotesRaw === 'number' && !isNaN(lotesRaw)) {
+      const s = lotesRaw.toString();
+      lotesStr = s.includes('.') ? s.replace('.', ',') : s;
+    } else {
+      lotesStr = (lotesRaw || '').toString().trim().replace(/\s+/g, '');
+    }
+    if (!lotesStr || lotesStr === '0') continue;
+
+    // Fardos: lê colFds e as próximas colunas enquanto for número válido (1-300)
+    let fds = [];
+    for (let c = colFds; c < Math.min(colFds + 8, row.length); c++) {
+      const v = row[c];
+      const n = typeof v === 'number' ? v : parseInt((v||'').toString().replace(/[^0-9]/g,''));
+      if (n > 0 && n <= 300) fds.push(n);
+      else if (fds.length > 0) break;
+    }
+    if (!fds.length) fds = [110];
+
+    // Peso líquido: pode ser fórmula string ou número
+    let liq = 0;
+    const liqRaw = row[colLiq];
+    if (typeof liqRaw === 'number') {
+      const absVal = Math.abs(liqRaw);
+      // Se o valor for menor que 1000, provavelmente está em toneladas → converte para kg
+      if (absVal > 0 && absVal < 1000) liq = Math.round(absVal * 1000);
+      else liq = Math.round(absVal);
+    } else if (liqRaw) {
+      const s = liqRaw.toString().trim();
+      // Formato pt-BR: ponto = milhar, vírgula = decimal (ex: "50.480,00" ou "50.480")
+      // Formato en-US: vírgula = milhar, ponto = decimal (ex: "50,480.00")
+      let numParsed = NaN;
+      if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) {
+        // pt-BR com milhar: "50.480" ou "50.480,00"
+        numParsed = parseFloat(s.replace(/\./g, '').replace(',', '.'));
+      } else if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) {
+        // en-US com milhar: "50,480" ou "50,480.00"
+        numParsed = parseFloat(s.replace(/,/g, ''));
+      } else {
+        // Sem separador de milhar — trata vírgula como decimal
+        numParsed = parseFloat(s.replace(',', '.'));
+      }
+      if (!isNaN(numParsed) && numParsed > 0) {
+        // Se menor que 1000, provavelmente toneladas → converte para kg
+        liq = numParsed < 1000 ? Math.round(numParsed * 1000) : Math.round(numParsed);
+      } else {
+        // Fórmula tipo "=50700-1*SUM(...)" — extrai o maior número de 5+ dígitos
+        const matches = s.match(/\d{4,6}/g);
+        if (matches) liq = Math.max(...matches.map(Number));
+      }
+    }
+    // Fallback: estima peso pelos fardos (~459 kg/fardo) — será marcado como estimado na UI
+    if (!liq && fds.length) liq = 0; // mantém 0 para a UI detectar e estimar
+
+    result.push({ n: num, dt, lotes: lotesStr, fds, liq });
+  }
+  return result;
+}
+
+// ── Detecta e parseia planilha de IEs (INSTRUCOES_DE_CARREGAMENTO…)
+// Regra: LOTE em VERMELHO + TACHADO = já carregado (done). Sem formatação = pendente.
+function parseIesFromRaw(rows2d, workbookRaw) {
+  const ieColors = ['#00E5A0','#3B8EF0','#F5A623','#FF7A5C','#FF6B9D','#A78BFA','#34D399','#FBBF24','#60A5FA','#F87171'];
+  let colorIdx = 0;
+  const ieMap = {};
+
+  // ── Acessa sheet com estilos via workbook SheetJS (leitura de cellStyles)
+  let sheetWithStyles = null;
+  if (workbookRaw) {
+    const sName = workbookRaw.SheetNames ? workbookRaw.SheetNames[0] : null;
+    if (sName) sheetWithStyles = workbookRaw.Sheets[sName];
+  }
+
+  function colIdxToLetter(idx) {
+    let s = ''; let n = idx + 1;
+    while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
+    return s;
+  }
+
+  // Verifica se célula (rowIdx 0-based, colIdx 0-based) tem strike + cor vermelha
+  function isCellStrikeRed(rowIdx, colIdx) {
+    if (!sheetWithStyles) return null;
+    const addr = colIdxToLetter(colIdx) + (rowIdx + 1);
+    const cell = sheetWithStyles[addr];
+    if (!cell || !cell.s) return false;
+    const s = cell.s;
+    const strike = s.strike === true || (s.font && s.font.strike === true);
+    if (!strike) return false;
+    const rgb = (s.font && s.font.color && s.font.color.rgb) || (s.color && s.color.rgb) || '';
+    // Vermelho: FFFF0000 ou FF0000
+    return /^(FF)?FF0000$/i.test(rgb) || rgb.toUpperCase() === 'FFFF0000';
+  }
+
+  // Percorre a planilha bloco a bloco
+  // Cada bloco começa com: [, BRZxxx/xx, (CONCLUIDO?), ...]
+  // Seguido de: [, I.E., FORNECEDOR, CONTRATO, LOTE, TIPO, FARDOS]
+  // Depois as linhas de dados, até "Total Geral"
+  // ── Detecta se o formato é "flat" (BRZ na col 0 com cabeçalho direto)
+  // Ex: INSTRUÇÃO | FORNECEDOR | CONTRATO | LOTE | TIPO | FARDOS | PLACA
+  function tryParseFlatFormat(rows2d, workbookRaw) {
+    if (!rows2d.length) return null;
+    const hdr = rows2d[0].map(v => v.toString().toUpperCase().trim());
+    const colIE   = hdr.findIndex(v => /^INSTRU/i.test(v) || v === 'I.E.' || v === 'IE' || v === 'BRZ');
+    const colLote = hdr.findIndex(v => v === 'LOTE' || v === 'LOTES');
+    const colFds  = hdr.findIndex(v => v === 'FARDOS' || v === 'FDS' || v === 'TOTAL');
+    if (colIE < 0 || colLote < 0) return null;
+    // Verifica se primeira célula da linha 2 é um BRZ (confirma formato flat)
+    const secondRow = rows2d[1] || [];
+    if (!/^BRZ\d+\/\d+$/i.test((secondRow[colIE] || '').toString().trim())) return null;
+
+    const ieColors = ['#00E5A0','#3B8EF0','#F5A623','#FF7A5C','#FF6B9D','#A78BFA','#34D399','#FBBF24','#60A5FA','#F87171'];
+    let colorIdx = 0;
+    const ieMap = {};
+
+    // Acessa sheet com estilos para detectar strike+vermelho (lotes já carregados)
+    let sheetWS = null;
+    if (workbookRaw && workbookRaw.SheetNames) {
+      sheetWS = workbookRaw.Sheets[workbookRaw.SheetNames[0]];
+    }
+    function colIdxToLetter2(idx) {
+      let s = ''; let n = idx + 1;
+      while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
+      return s;
+    }
+    function isCellStrikeRed2(rowIdx, colIdx) {
+      if (!sheetWS) return false;
+      const addr = colIdxToLetter2(colIdx) + (rowIdx + 1);
+      const cell = sheetWS[addr];
+      if (!cell || !cell.s) return false;
+      const s = cell.s;
+      const strike = s.strike === true || (s.font && s.font.strike === true);
+      if (!strike) return false;
+      const rgb = (s.font && s.font.color && s.font.color.rgb) || (s.color && s.color.rgb) || '';
+      return /^(FF)?FF0000$/i.test(rgb) || rgb.toUpperCase() === 'FFFF0000';
+    }
+
+    for (let r = 1; r < rows2d.length; r++) {
+      const dRow = rows2d[r];
+      const ieName = (dRow[colIE] || '').toString().trim().toUpperCase();
+      if (!/^BRZ\d+\/\d+$/i.test(ieName)) continue;
+      const loteNum = parseInt((dRow[colLote] || '').toString().replace(/\D/g, ''));
+      if (!loteNum) continue;
+
+      if (!ieMap[ieName]) {
+        // Tenta ler cor de fundo da célula da IE na planilha
+        let ieColor = ieColors[colorIdx++ % ieColors.length];
+        if (sheetWS) {
+          const addrIE = colIdxToLetter2(colIE) + (r + 1);
+          const cellIE = sheetWS[addrIE];
+          if (cellIE && cellIE.s) {
+            const bgRgb = (cellIE.s.fgColor && cellIE.s.fgColor.rgb)
+              || (cellIE.s.bgColor && cellIE.s.bgColor.rgb)
+              || (cellIE.s.patternFill && cellIE.s.patternFill.fgColor && cellIE.s.patternFill.fgColor.rgb)
+              || '';
+            if (bgRgb && bgRgb.length >= 6 && !/^(00|FF){3,4}$/.test(bgRgb) && bgRgb.toUpperCase() !== 'FFFFFF' && bgRgb.toUpperCase() !== 'FFFF') {
+              const hex = bgRgb.replace(/^FF/i, '');
+              if (/^[0-9A-Fa-f]{6}$/.test(hex)) ieColor = '#' + hex.toUpperCase();
+            }
+          }
+        }
+        ieMap[ieName] = {
+          name: ieName,
+          color: ieColor,
+          total_fardos: 0, done_fardos: 0,
+          total_lotes: 0, done_lotes: 0,
+          lotes_done: [], lotes_pend: [], lotes_fardos: {}
+        };
+      }
+      const ie = ieMap[ieName];
+      let fardos = 110;
+      if (colFds >= 0) {
+        const fRaw = (dRow[colFds] || '').toString().replace(/[^0-9]/g, '');
+        if (fRaw) fardos = parseInt(fRaw) || 110;
+      }
+      // Salva fardos autorizados pela instrução para este lote nesta IE
+      ie.lotes_fardos[loteNum] = fardos;
+      const isDone = isCellStrikeRed2(r, colLote);
+      ie.total_fardos += fardos;
+      ie.total_lotes++;
+      if (isDone) {
+        ie.done_fardos += fardos; ie.done_lotes++;
+        if (!ie.lotes_done.includes(loteNum)) ie.lotes_done.push(loteNum);
+      } else {
+        if (!ie.lotes_pend.includes(loteNum)) ie.lotes_pend.push(loteNum);
+      }
+    }
+    if (!Object.keys(ieMap).length) return null;
+    return { ies: Object.values(ieMap), errors: [] };
+  }
+
+  // Tenta formato flat primeiro
+  const flatResult = tryParseFlatFormat(rows2d, workbookRaw);
+  if (flatResult && flatResult.ies.length) return flatResult;
+
+  let i = 0;
+  while (i < rows2d.length) {
+    const row = rows2d[i];
+    // Aceita BRZ tanto na coluna 0 quanto na coluna 1
+    const cell0 = (row[0] || '').toString().trim().toUpperCase();
+    const cell1 = (row[1] || '').toString().trim().toUpperCase();
+    const cell1Eff = /^BRZ\d+\/\d+$/.test(cell0) ? cell0 : cell1;
+    // Substitui row[1] na lógica abaixo para suportar ambos os layouts
+    Object.defineProperty(row, '__brzCell', { value: cell1Eff, configurable: true, writable: true });
+
+    if (/^BRZ\d+\/\d+$/.test(cell1Eff)) {
+      const ieName = cell1Eff;
+      const hasConcluidoTitle = row.some(v => /conclu/i.test(v.toString()));
+
+      // Procura sub-cabeçalho I.E./LOTE nas próximas 3 linhas
+      let hdrIdx = -1;
+      for (let k = i + 1; k <= i + 3 && k < rows2d.length; k++) {
+        const hRow = rows2d[k].map(v => v.toString().toUpperCase().trim());
+        if ((hRow.includes('I.E.') || hRow.includes('IE')) && hRow.some(v => v === 'LOTE' || v === 'LOTES')) {
+          hdrIdx = k; break;
+        }
+      }
+
+      if (hdrIdx >= 0) {
+        const hdr = rows2d[hdrIdx].map(v => v.toString().toUpperCase().trim());
+        const colIE    = hdr.findIndex(v => v === 'I.E.' || v === 'IE');
+        const colLote  = hdr.findIndex(v => v === 'LOTE' || v === 'LOTES');
+        const colFards = hdr.findIndex(v => v === 'FARDOS' || v === 'FDS' || v === 'TOTAL');
+
+        if (!ieMap[ieName]) {
+          // Tenta ler cor de fundo da célula do título BRZ nesta linha
+          let ieColor = ieColors[colorIdx++ % ieColors.length];
+          if (sheetWithStyles) {
+            // Tenta coluna 0 e coluna 1 (onde o BRZ pode estar)
+            for (const tryCol of [0, 1]) {
+              const addrBRZ = colIdxToLetter(tryCol) + (i + 1);
+              const cellBRZ = sheetWithStyles[addrBRZ];
+              if (cellBRZ && cellBRZ.s) {
+                const bgRgb = (cellBRZ.s.fgColor && cellBRZ.s.fgColor.rgb)
+                  || (cellBRZ.s.bgColor && cellBRZ.s.bgColor.rgb)
+                  || (cellBRZ.s.patternFill && cellBRZ.s.patternFill.fgColor && cellBRZ.s.patternFill.fgColor.rgb)
+                  || '';
+                if (bgRgb && bgRgb.length >= 6 && bgRgb.toUpperCase() !== 'FFFFFF' && bgRgb.toUpperCase() !== 'FFFF') {
+                  const hex = bgRgb.replace(/^FF/i, '');
+                  if (/^[0-9A-Fa-f]{6}$/.test(hex)) { ieColor = '#' + hex.toUpperCase(); break; }
+                }
+              }
+            }
+          }
+          ieMap[ieName] = {
+            name: ieName,
+            color: ieColor,
+            total_fardos: 0, done_fardos: 0,
+            total_lotes: 0, done_lotes: 0,
+            lotes_done: [], lotes_pend: [], lotes_fardos: {},
+            _concludedByTitle: hasConcluidoTitle
+          };
+        }
+        const ie = ieMap[ieName];
+
+        for (let j = hdrIdx + 1; j < rows2d.length; j++) {
+          const dRow = rows2d[j];
+          const firstCell = (dRow[1] || '').toString().trim().toUpperCase();
+
+          // Fim do bloco: "Total Geral" ou início de próximo bloco BRZ sem lote
+          if (/total/i.test(firstCell)) { i = j; break; }
+          if (/^BRZ\d+\/\d+$/.test(firstCell) && !(dRow[colLote] || '').toString().trim()) { i = j - 1; break; }
+
+          const ieCell = (dRow[colIE] || '').toString().trim().toUpperCase();
+          if (!/^BRZ\d+\/\d+$/.test(ieCell)) continue;
+
+          const loteNum = parseInt((dRow[colLote] || '').toString().replace(/\D/g, ''));
+          if (!loteNum) continue;
+
+          let fardos = 110;
+          if (colFards >= 0) {
+            const fRaw = (dRow[colFards] || '').toString().replace(/[^0-9]/g, '');
+            if (fRaw) fardos = parseInt(fRaw) || 110;
+          }
+
+          // Salva fardos autorizados pela instrução para este lote nesta IE
+          ie.lotes_fardos[loteNum] = fardos;
+
+          // Determina se lote foi carregado:
+          // Prioridade 1: estilo da célula (strike + vermelho)
+          // Prioridade 2: todos os lotes done se IE marcada CONCLUIDO no título
+          const styleCheck = isCellStrikeRed(j, colLote);
+          const isDone = styleCheck !== null ? styleCheck : ie._concludedByTitle;
+
+          ie.total_fardos += fardos;
+          ie.total_lotes++;
+          if (isDone) {
+            ie.done_fardos += fardos;
+            ie.done_lotes++;
+            if (!ie.lotes_done.includes(loteNum)) ie.lotes_done.push(loteNum);
+          } else {
+            if (!ie.lotes_pend.includes(loteNum)) ie.lotes_pend.push(loteNum);
+          }
+
+          if (j === rows2d.length - 1) i = j;
+        }
+      }
+    }
+    i++;
+  }
+
+  Object.values(ieMap).forEach(ie => delete ie._concludedByTitle);
+  if (!Object.keys(ieMap).length) return { ies: [], errors: ['Nenhuma IE (BRZxxx/xx) encontrada na planilha'] };
+  return { ies: Object.values(ieMap), errors: [] };
+}
+
+// ── Fallback: parse genérico por headers (CSV ou XLSX simples)
+function parseCargasSheet(rows) {
+  if (!rows || !rows.length) return [];
+  const result = [];
+  const headers = Object.keys(rows[0]);
+  const find = (patterns) => headers.find(h => patterns.some(p => h.toLowerCase().includes(p))) || '';
+  const colData  = find(['data carregamento','data','date','dt','dia']);
+  const colLotes = find(['lote(s)','lotes','lote','lot']);
+  const colFds   = find(['qtidade fds','fardos','fds','qtd','quant','bales']);
+  const colLiq   = find(['peso liq','liq','peso','kg','weight','net']);
+  const colN     = find(['no de cargas','nº','no','num','carga','n°','#','ordem','numero']);
+  if (!colData || !colLotes) return [];
+  rows.forEach((row, idx) => {
+    const dt = parseDate(row[colData] || '');
+    if (!dt) return;
+    const lotesStr = (row[colLotes] || '').toString().trim().replace(/\s+/g,'');
+    if (!lotesStr || lotesStr === '0') return;
+    const fdsRaw = (row[colFds] || '').toString().trim();
+    const fds = fdsRaw ? fdsRaw.split(/[,;]/).map(x => parseInt(x) || 110).filter(x => x > 0) : [110];
+    const liqRawStr = (row[colLiq] || '0').toString().trim();
+    let liq = 0;
+    if (liqRawStr) {
+      let liqNum = NaN;
+      if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(liqRawStr)) liqNum = parseFloat(liqRawStr.replace(/\./g,'').replace(',','.'));
+      else if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(liqRawStr)) liqNum = parseFloat(liqRawStr.replace(/,/g,''));
+      else liqNum = parseFloat(liqRawStr.replace(',','.'));
+      if (!isNaN(liqNum) && liqNum > 0) liq = liqNum < 1000 ? Math.round(liqNum * 1000) : Math.round(liqNum);
+    }
+    const num = parseInt(row[colN]) || result.length + 1;
+    result.push({ n: num, dt, lotes: lotesStr, fds, liq });
+  });
+  return result;
+}
+
+function parseIesSheet(rows) {
+  if (!rows || !rows.length) return { ies: [], errors: [] };
+  const headers = Object.keys(rows[0]);
+  const find = (patterns) => headers.find(h => patterns.some(p => h.toLowerCase().includes(p))) || '';
+  const colIE    = find(['i.e.','ie','instrucao','instrução','embarque','brz','instruc','codigo']);
+  const colLote  = find(['lote','lot','numero_lote']);
+  const colTotal = find(['fardos','fds','qtd','bales','quantidade','total']);
+  const colStatus = find(['status','situacao','situação','done','concluido','concluído','carregado']);
+  if (!colIE || !colLote) return { ies: [], errors: ['Colunas I.E. e LOTE não encontradas'] };
+  const ieColors = ['#00E5A0','#3B8EF0','#F5A623','#FF7A5C','#FF6B9D','#A78BFA','#34D399','#FBBF24','#60A5FA','#F87171'];
+  let colorIdx = 0;
+  const ieMap = {};
+  rows.forEach(row => {
+    const ieName = (row[colIE] || '').toString().trim().toUpperCase();
+    if (!/^BRZ/.test(ieName)) return;
+    const loteNum = parseInt((row[colLote] || '').toString().replace(/\D/g, ''));
+    if (!loteNum) return;
+    if (!ieMap[ieName]) {
+      ieMap[ieName] = { name: ieName, color: ieColors[colorIdx++ % ieColors.length],
+        total_fardos: 0, done_fardos: 0, total_lotes: 0, done_lotes: 0,
+        lotes_done: [], lotes_pend: [] };
+    }
+    const ie = ieMap[ieName];
+    const fardos = parseInt(row[colTotal]) || 110;
+    const statusRaw = (row[colStatus] || '').toString().toLowerCase();
+    const isDone = /conclu|done|ok|sim|yes|1|true|carregado|finalizado/.test(statusRaw);
+    ie.total_fardos += fardos;
+    ie.total_lotes++;
+    if (isDone) { ie.done_fardos += fardos; ie.done_lotes++; ie.lotes_done.push(loteNum); }
+    else { ie.lotes_pend.push(loteNum); }
+  });
+  return { ies: Object.values(ieMap), errors: [] };
+}
+
+// ── Wrapper principal: lê arquivo e retorna { rows, raw2d, sheetNames, workbook }
+function parseFile(file) {
+  return new Promise((resolve, reject) => {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'csv') {
+      Papa.parse(file, {
+        header: true, skipEmptyLines: true,
+        complete: r => resolve({ rows: r.data, raw2d: null, fileName: file.name }),
+        error: e => reject(e)
+      });
+    } else if (ext === 'xlsx' || ext === 'xls') {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const { workbook, results } = readXlsxRaw(data);
+          // Para header-based parsing, usa a primeira sheet com header=true
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+          resolve({ rows, raw2d: results, sheetNames: workbook.SheetNames, fileName: file.name, workbook });
+        } catch (err) { reject(err); }
+      };
+      reader.onerror = () => reject(new Error('Falha ao ler arquivo XLSX'));
+      reader.readAsArrayBuffer(file);
+    } else {
+      resolve({ rows: [], raw2d: null, fileName: file.name });
+    }
+  });
+}
+
+// ========== CHART MANAGEMENT ==========
+let chart1 = null, chart2 = null;
+let grafOk = false;
+function destroyCharts() {
+  if (chart1) { chart1.destroy(); chart1 = null; }
+  if (chart2) { chart2.destroy(); chart2 = null; }
+  grafOk = false;
+}
+
+// ========== NAVIGATION ==========
+let curScreen = 'dash';
+let curWeek = 0;
+let selDay = '';
+
+function S(name) {
+  curScreen = name;
+  document.querySelectorAll('.scr').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('active'));
+  document.getElementById('scr-' + name).classList.add('active');
+  const names = ['dash', 'diario', 'mapa', 'graf'];
+  const btns = document.querySelectorAll('.nb');
+  names.forEach((n, i) => { if (n === name) btns[i].classList.add('active'); });
+  
+  destroyCharts();
+  if (name === 'graf') renderGraf();
+  if (name === 'mapa') renderMapa();
+  if (name === 'diario') renderDiario();
+  if (name === 'dash') renderDash();
+}
+
+function fmt(dt) {
+  if (!dt) return '—';
+  const d = new Date(dt + 'T12:00:00');
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+// ========== RENDER DASH ==========
+function renderDash() {
+  const totalFardos = IES.reduce((s, ie) => s + ie.total_fardos, 0);
+  const doneFardos = IES.reduce((s, ie) => s + ie.done_fardos, 0);
+  const doneIEs = IES.filter(ie => ie.lotes_pend.length === 0).length;
+  const pct = totalFardos ? Math.round(doneFardos / totalFardos * 100) : 0;
+  const totalCargas = CARGAS.length;
+
+  // Peso total carregado (soma liq de todas as cargas; fallback ~459 kg/fardo)
+  const pesoTotalKg = CARGAS.reduce((s,c) => {
+    const tf = c.fds.reduce((a,b)=>a+b,0);
+    return s + ((c.liq && c.liq > 0) ? c.liq : tf * 459);
+  }, 0);
+  const pesoTotalStr = pesoTotalKg.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' kg';
+
+  document.getElementById('top-mets').innerHTML = `
+    <div class="met" onclick="S('graf')">
+      <div class="ml">Fardos Carregados</div>
+      <div class="mv">${doneFardos.toLocaleString('pt-BR')}</div>
+      <div class="ms">${pesoTotalStr} · de ${totalFardos.toLocaleString('pt-BR')} total</div>
+    </div>
+    <div class="met" onclick="S('graf')">
+      <div class="ml">IEs Concluídas</div>
+      <div class="mv"><span class="met-accent">${doneIEs}</span>/${IES.length}</div>
+      <div class="ms">instruções de embarque</div>
+    </div>
+    <div class="met" onclick="S('graf')">
+      <div class="ml">Progresso Geral</div>
+      <div class="mv"><span class="met-accent">${pct}%</span></div>
+      <div class="ms">fardos embarcados</div>
+    </div>
+    <div class="met" onclick="S('diario')">
+      <div class="ml">Cargas Realizadas</div>
+      <div class="mv">${totalCargas}</div>
+      <div class="ms">carregamentos no período</div>
+    </div>
+  `;
+
+  // CORRIGIDO: usar totalFardos em vez de 30813 hardcoded
+  const pctC = totalFardos ? Math.round(doneFardos / totalFardos * 100) : 0;
+  document.getElementById('contrato-bar').style.width = pctC + '%';
+  document.getElementById('contrato-leg').innerHTML = 
+    `<span>${doneFardos.toLocaleString('pt-BR')} fardos carregados</span><span>${totalFardos.toLocaleString('pt-BR')} total contrato · ${pctC}%</span>`;
+  
+  // Progresso geral dos 30.813 fardos comprometidos
+  const TOTAL_CONTRATO = 30813;
+  const pctContrato = Math.round(doneFardos / TOTAL_CONTRATO * 100);
+  const progressoEl = document.getElementById('progresso-contrato');
+  if (progressoEl) {
+    progressoEl.innerHTML = `
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;">Progresso do Contrato</span>
+          <span style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--green);">${pctContrato}%</span>
+        </div>
+        <div style="background:var(--bg4);border-radius:6px;height:10px;overflow:hidden;position:relative;">
+          <div style="height:100%;width:${Math.min(pctContrato,100)}%;background:linear-gradient(90deg,var(--green),var(--blue));border-radius:6px;transition:width .6s ease;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-family:var(--font-mono);font-size:11px;color:var(--text3);">
+          <span>${doneFardos.toLocaleString('pt-BR')} fardos carregados</span>
+          <span>${TOTAL_CONTRATO.toLocaleString('pt-BR')} fardos comprometidos · faltam ${Math.max(0, TOTAL_CONTRATO - doneFardos).toLocaleString('pt-BR')}</span>
+        </div>
+      </div>
+    `;
+  }
+  
+  const badge = document.getElementById('contrato-badge');
+  if (pctC === 100) badge.innerHTML = '✅ CONCLUÍDO';
+  else if (pctC > 50) badge.innerHTML = '📦 EMBARCADO PARCIAL';
+  else badge.innerHTML = '🚛 EMBARCANDO';
+
+  // Nenhum lookup global necessário: cada IE já tem ie._loteFardos com os fardos corretos (por IE)
+
+  // Calcula peso líquido (kg) por IE: distribui liq de cada carga pelos lotes,
+  // proporcionalmente aos fardos, e soma só os lotes que pertencem à IE.
+  const lotesDaIEMap = {};
+  IES.forEach(ie => {
+    const s = new Set([...ie.lotes_done, ...ie.lotes_pend]);
+    lotesDaIEMap[ie.name] = s;
+  });
+  const kgPorIE = {};
+  CARGAS.forEach(carga => {
+    const lotesParts = carga.lotes.toString().split(',').map(l => parseInt(l.trim())).filter(l => l > 0);
+    const totalFdsCarga = carga.fds.reduce((a,b) => a+b, 0);
+    const liqCarga = (carga.liq && carga.liq > 0) ? carga.liq : totalFdsCarga * 459;
+    lotesParts.forEach((loteNum, idx) => {
+      const fdsLote = (carga.fds[idx] != null) ? carga.fds[idx] : 110;
+      const kgLote = totalFdsCarga > 0 ? Math.round(liqCarga * fdsLote / totalFdsCarga) : 0;
+      IES.forEach(ie => {
+        if (lotesDaIEMap[ie.name].has(loteNum) && ie.lotes_done.includes(loteNum)) {
+          kgPorIE[ie.name] = (kgPorIE[ie.name] || 0) + kgLote;
+        }
+      });
+    });
+  });
+
+  document.getElementById('ie-progs').innerHTML = IES.map(ie => {
+    const p = Math.round(ie.done_fardos / ie.total_fardos * 100);
+    const concl = ie.lotes_pend.length === 0;
+    const badge = concl
+      ? `<span class="badge ok">CONCLUÍDO</span>`
+      : `<span class="badge pend">${ie.done_lotes}/${ie.total_lotes} lotes</span>`;
+    const kgIE = kgPorIE[ie.name] || 0;
+    const kgIEStr = kgIE.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' kg';
+
+    // Lotes carregados com fardos
+    const lotesCarregadosHTML = ie.lotes_done.length > 0
+      ? `<div style="margin-top:8px;">
+          <div style="font-family:var(--font-mono);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">✅ Lotes carregados</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            ${ie.lotes_done.map(l => {
+              const fds = (ie.lotes_fardos && ie.lotes_fardos[l] != null) ? ie.lotes_fardos[l] : 110;
+              return `<span style="font-family:var(--font-mono);font-size:11px;padding:2px 7px;border-radius:4px;background:rgba(0,229,160,.08);color:var(--green);border:1px solid rgba(0,229,160,.15);">L${l}: ${fds} fds</span>`;
+            }).join('')}
+          </div>
+        </div>` : '';
+
+    // Lotes pendentes com fardos previstos
+    const lotesPendentesHTML = ie.lotes_pend.length > 0
+      ? `<div style="margin-top:7px;">
+          <div style="font-family:var(--font-mono);font-size:11px;color:var(--amber);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">⚠ Lotes pendentes</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            ${ie.lotes_pend.map(l => {
+              const fds = (ie.lotes_fardos && ie.lotes_fardos[l] != null) ? ie.lotes_fardos[l] : 110;
+              return `<span style="font-family:var(--font-mono);font-size:11px;padding:2px 7px;border-radius:4px;background:rgba(245,166,35,.08);color:var(--amber);border:1px solid rgba(245,166,35,.2);">L${l}: ${fds} fds</span>`;
+            }).join('')}
+          </div>
+        </div>` : '';
+
+    return `<div class="pw">
+      <div class="ph">
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <span style="font-weight:700;font-size:14px;letter-spacing:-.01em;">${ie.name}</span>
+          ${kgIE > 0 ? `<span style="font-family:var(--font-mono);font-size:11px;color:var(--text2);">${kgIEStr} embarcados</span>` : ''}
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          ${badge}
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--text2);">${ie.done_fardos.toLocaleString('pt-BR')} fds</span>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--text2);">${p}%</span>
+        </div>
+      </div>
+      <div class="pb"><div class="pf" style="width:${p}%;background:${ie.color};"></div></div>
+      ${lotesCarregadosHTML}
+      ${lotesPendentesHTML}
+    </div>`;
+  }).join('');
+
+  const pendIEs = IES.filter(ie => ie.lotes_pend.length > 0);
+  const alert = document.getElementById('pend-alert');
+  if (pendIEs.length) {
+    alert.style.display = 'block';
+    alert.innerHTML = '<strong>⚠ Pendente:</strong> ' + pendIEs.map(ie => `${ie.name} → lotes ${ie.lotes_pend.join(', ')}`).join(' &nbsp;|&nbsp; ');
+  } else {
+    alert.style.display = 'none';
+  }
+}
+
+// ========== RENDER DIÁRIO ==========
+function pW() { if (curWeek > 0) { curWeek--; renderDiario(); } }
+function nW() { if (curWeek < WEEKS.length - 1) { curWeek++; renderDiario(); } }
+
+function renderDiario() {
+  const wk = WEEKS[curWeek];
+  if (!wk) return;
+  document.getElementById('btn-prev').disabled = curWeek === 0;
+  document.getElementById('btn-next').disabled = curWeek === WEEKS.length - 1;
+  document.getElementById('wlbl').innerHTML =
+    `Semana ${fmt(wk[0])} – ${fmt(wk[4])} · ${new Date((wk[0] || wk.find(d => d)) + 'T12:00:00').getFullYear() || 2026}`;
+  document.getElementById('wgr').innerHTML = wk.map((dt, i) => {
+    const cs = CARGAS.filter(c => c.dt === dt);
+    const fds = cs.reduce((s, c) => s + c.fds.reduce((a, b) => a + b, 0), 0);
+    const sel = dt === selDay ? 'sel' : '';
+    const empty = fds === 0 ? 'empty' : '';
+    return `<div class="wd ${sel} ${empty}" onclick="selD('${dt}')">
+      <div class="wdn">${DNAMES[i]}<br><span style="font-size:11px;letter-spacing:0;">${fmt(dt)}</span></div>
+      <div class="wdv" style="color:${fds > 0 ? 'var(--text)' : 'var(--text3)'}">${fds || '—'}</div>
+      <div class="wds">${cs.length > 0 ? cs.length + ' cargas' : 'sem carga'}</div>
+    </div>`;
+  }).join('');
+  renderDay(selDay);
+}
+
+function selD(dt) { selDay = dt; renderDiario(); }
+
+function renderDay(dt) {
+  const d = new Date((dt || '2026-01-01') + 'T12:00:00');
+  const dn = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  document.getElementById('dtitle').innerHTML = dt ? `${dn[d.getDay()]} · ${fmt(dt)}/${d.getFullYear()}` : 'Cargas do dia';
+  const cs = CARGAS.filter(c => c.dt === dt);
+  if (!cs.length) {
+    document.getElementById('dcont').innerHTML =
+      `<div style="padding:2rem;text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--text3);">Sem carregamentos registrados.</div>`;
+    return;
+  }
+  document.getElementById('dcont').innerHTML = cs.map(c => {
+    const la = c.lotes.split(',');
+    const tf = c.fds.reduce((a, b) => a + b, 0);
+    // Peso líquido real da carga; se vier 0 (fórmula não parseada), estima ~459 kg/fardo
+    const liqReal = (c.liq && c.liq > 0) ? c.liq : tf * 459;
+    const liqFonte = (c.liq && c.liq > 0) ? '' : ' <span style="color:var(--text3);font-size:11px;">(estimado)</span>';
+    // Tags por lote: mostra fardos — o peso é da carga toda, não dividido por lote
+    const tags = la.map((l, i) => {
+      const fds = (c.fds[i] != null) ? c.fds[i] : (c.fds[0] ?? 110);
+      return `<span class="ltag done">L${l.trim()}: ${fds} fds</span>`;
+    }).join('');
+    const obs = c.obs ? `<div style="margin-top:6px;font-size:11px;color:var(--amber);">⚠ ${c.obs}</div>` : '';
+    return `<div class="dr">
+      <div class="dh" onclick="this.nextElementSibling.classList.toggle('open')">
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--blue);min-width:72px;font-weight:500;">#${String(c.n).padStart(3, '0')}</span>
+        <span style="font-size:12px;color:var(--text2);flex:1;font-weight:300;">VTSA01731/25</span>
+        <span style="font-family:var(--font-display);font-size:16px;font-weight:700;">${tf}</span>
+        <span style="font-size:11px;color:var(--text3);margin-left:6px;">fds</span>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text2);margin-left:10px;font-weight:500;">${liqReal.toLocaleString('pt-BR')} kg</span>${liqFonte}
+        <span style="font-size:11px;color:var(--text3);margin-left:8px;">▼</span>
+      </div>
+      <div class="db">
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em;">Lotes carregados</div>
+        ${tags}
+        <div style="margin-top:8px;font-family:var(--font-mono);font-size:11px;color:var(--text2);">
+          Peso líquido total da carga: <span style="color:var(--text2);font-weight:500;">${liqReal.toLocaleString('pt-BR')} kg</span>${liqFonte}
+        </div>
+        ${obs}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ========== RENDER MAPA ==========
+function renderMapa() {
+  document.getElementById('mleg').innerHTML =
+    IES.map(ie => `<div class="li"><div class="ld" style="background:${ie.color};"></div>${ie.name}</div>`).join('') +
+    '<div class="li"><div class="ld" style="background:var(--bg4);border:1px solid var(--border2);"></div>Sem IE</div>';
+
+  document.getElementById('mapcont').innerHTML = Object.entries(MAPA).map(([rua, data]) => {
+    const boxes = data.lotes.map(l => {
+      const info = LOTE_IE[l];
+      const bg = info ? info.ie.color : 'var(--bg4)';
+      const fg = info ? '#000' : 'var(--text3)';
+      const op = info ? (info.done ? '1' : '0.4') : '0.7';
+      return `<div class="lb" style="background:${bg};color:${fg};opacity:${op};" title="Lote ${l}${info ? ' · ' + info.ie.name + ' · ' + (info.done ? '✓ concluído' : '⏳ pendente') : ' · sem IE atribuída'}">${l}</div>`;
+    }).join('');
+    return `<div class="mr"><div class="rl">${rua}</div><div class="lr">${boxes}</div></div>`;
+  }).join('');
+}
+
+// ========== RENDER GRÁFICOS (média corrigida) ==========
+function renderGraf() {
+  if (grafOk) return;
+  grafOk = true;
+
+  const days = [...new Set(CARGAS.map(c => c.dt))].sort();
+  if (!days.length) {
+    document.getElementById('avg-f').textContent = '—';
+    document.getElementById('avg-c').textContent = '—';
+    return;
+  }
+
+  const fdArr = days.map(dt => CARGAS.filter(c => c.dt === dt).reduce((s, c) => s + c.fds.reduce((a, b) => a + b, 0), 0));
+  const caArr = days.map(dt => CARGAS.filter(c => c.dt === dt).length);
+  const lbls = days.map(dt => { const d = new Date(dt + 'T12:00:00'); const dn = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']; return `${dn[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}`; });
+  const mi = fdArr.indexOf(Math.max(...fdArr));
+
+  // CORRIGIDO: média sobre dias úteis totais, não apenas dias com carga
+  const firstDate = new Date(days[0] + 'T12:00:00');
+  const lastDate = new Date(days[days.length - 1] + 'T12:00:00');
+  const totalBusinessDays = getBusinessDaysBetween(firstDate, lastDate);
+  const totalFardos = fdArr.reduce((a, b) => a + b, 0);
+  const avgFardosCorrigido = totalBusinessDays ? Math.round(totalFardos / totalBusinessDays) : 0;
+  const avgCargas = (caArr.reduce((a, b) => a + b, 0) / caArr.length).toFixed(1);
+
+  document.getElementById('avg-f').textContent = avgFardosCorrigido.toLocaleString('pt-BR');
+  document.getElementById('avg-c').textContent = avgCargas;
+  document.getElementById('best-v').textContent = Math.max(...fdArr).toLocaleString('pt-BR');
+  document.getElementById('best-d').textContent = lbls[mi] || '—';
+  document.getElementById('graf-period').innerHTML = days.length ? `${fmt(days[0])}–${fmt(days[days.length - 1])}` : '—';
+
+  document.getElementById('chart-leg').innerHTML =
+    `<span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:3px;background:var(--green);display:inline-block;"></span>Fardos</span>` +
+    `<span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:2px;background:var(--blue);display:inline-block;"></span>Nº cargas</span>`;
+
+  const gridColor = 'rgba(255,255,255,.04)';
+  const tickColor = '#4A5878';
+
+  chart1 = new Chart(document.getElementById('ch1'), {
+    type: 'bar',
+    data: {
+      labels: lbls,
+      datasets: [
+        { label: 'Fardos', data: fdArr, backgroundColor: 'rgba(0,229,160,.75)', borderRadius: 4, borderSkipped: false, order: 2 },
+        { label: 'Cargas', data: caArr, type: 'line', borderColor: 'var(--blue)', backgroundColor: 'rgba(59,142,240,.06)', tension: .35, yAxisID: 'y2', order: 1, pointRadius: 4, pointBackgroundColor: 'var(--blue)', pointBorderColor: 'var(--bg)', pointBorderWidth: 2 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { backgroundColor: 'var(--bg2)', borderColor: 'rgba(255,255,255,.1)', borderWidth: 1, titleColor: 'var(--text)', bodyColor: 'var(--text2)', titleFont: { family: 'DM Mono', size: 10 }, bodyFont: { family: 'DM Sans', size: 12 } } },
+      scales: { x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { family: 'DM Mono', size: 9 }, autoSkip: false, maxRotation: 0 } }, y: { grid: { color: gridColor }, ticks: { color: tickColor, font: { family: 'DM Mono', size: 9 } } }, y2: { position: 'right', grid: { display: false }, ticks: { color: tickColor, font: { family: 'DM Mono', size: 9 }, stepSize: 1 } } }
+    }
+  });
+
+  chart2 = new Chart(document.getElementById('ch2'), {
+    type: 'doughnut',
+    data: {
+      labels: IES.map(ie => ie.name),
+      datasets: [{ data: IES.map(ie => ie.total_fardos), backgroundColor: IES.map(ie => ie.color), borderWidth: 3, borderColor: 'var(--bg2)', hoverBorderColor: 'var(--bg2)', hoverOffset: 4 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: 'var(--bg2)', borderColor: 'rgba(255,255,255,.1)', borderWidth: 1, titleColor: 'var(--text)', bodyColor: 'var(--text2)', titleFont: { family: 'DM Mono', size: 10 }, bodyFont: { family: 'DM Sans', size: 12 } } }, cutout: '68%' }
+  });
+
+  document.getElementById('ie-leg').innerHTML = IES.map(ie =>
+    `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <div style="width:10px;height:10px;border-radius:3px;background:${ie.color};flex-shrink:0;"></div>
+      <span style="flex:1;font-size:12px;color:var(--text2);font-weight:300;">${ie.name}</span>
+      <span class="badge ${ie.lotes_pend.length === 0 ? 'ok' : 'pend'}" style="font-size:11px;">${ie.lotes_pend.length === 0 ? 'OK' : 'PEND'}</span>
+      <span style="font-family:var(--font-mono);font-size:12px;font-weight:500;">${ie.total_fardos.toLocaleString('pt-BR')}</span>
+    </div>`
+  ).join('');
+}
+
+// ========== IMPORT PROCESS ==========
+let selectedFiles = [];
+
+function openModal() {
+  document.getElementById('modal').classList.add('open');
+  selectedFiles = [];
+  renderFileList();
+  document.getElementById('importError').style.display = 'none';
+  document.getElementById('importStatus').style.display = 'none';
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal')) closeModal();
+});
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag');
+  handleFiles([...e.dataTransfer.files]);
+});
+fileInput.addEventListener('change', e => {
+  handleFiles([...e.target.files]);
+  fileInput.value = '';
+});
+
+function handleFiles(files) {
+  const valid = files.filter(f => /\.(csv|xlsx|xls)$/i.test(f.name));
+  if (!valid.length) { showError('Arquivo inválido. Use .csv ou .xlsx'); return; }
+  selectedFiles = [...selectedFiles, ...valid].slice(0, 2);
+  renderFileList();
+  document.getElementById('importError').style.display = 'none';
+}
+
+function renderFileList() {
+  const list = document.getElementById('fileList');
+  const btn = document.getElementById('btnImport');
+  if (!selectedFiles.length) { list.innerHTML = ''; btn.disabled = true; return; }
+  list.innerHTML = selectedFiles.map((f, i) => {
+    const ext = f.name.split('.').pop().toUpperCase();
+    const tagCls = ext === 'CSV' ? '' : 'b';
+    return `<div class="file-item">
+      <span class="file-item-icon">📄</span>
+      <span class="file-item-name">${f.name}</span>
+      <span class="file-item-tag ${tagCls}">${ext}</span>
+      <button class="file-item-remove" onclick="removeFile(${i})" title="Remover">✕</button>
+    </div>`;
+  }).join('');
+  btn.disabled = selectedFiles.length === 0;
+}
+
+function removeFile(i) {
+  selectedFiles.splice(i, 1);
+  renderFileList();
+}
+
+function showError(msg) {
+  const el = document.getElementById('importError');
+  el.textContent = '⚠ ' + msg;
+  el.style.display = 'block';
+}
+
+async function processImport() {
+  if (!selectedFiles.length) return;
+  setLoading(true, 'Lendo arquivos...');
+  
+  const statusEl = document.getElementById('importStatus');
+  statusEl.textContent = '⏳ Processando arquivos...';
+  statusEl.style.display = 'block';
+  document.getElementById('importError').style.display = 'none';
+
+  try {
+    const parsed = await Promise.all(selectedFiles.map(parseFile));
+
+    let updated = false;
+
+    for (const p of parsed) {
+      const { rows, raw2d, sheetNames, fileName, workbook } = p;
+      const fn = (fileName || '').toLowerCase();
+
+      // ── Detecta planilha de IEs (INSTRUCOES…) — verificar primeiro pois
+      //    "INSTRUCOES_DE_CARREGAMENTO" contém "carregamento" e seria detectado erroneamente como cargas
+      const isIes = /instruc|instrução|instrucao|brz/i.test(fn);
+      // ── Detecta planilha de CARGAS (Contratos_de_Algodão…) — só se não for IEs
+      const isCargas = !isIes && /contrato|carregamento|algod/i.test(fn);
+
+      if (isCargas && raw2d) {
+        setLoading(true, 'Processando cargas...');
+        // Tenta a sheet com nome VITERRA ou a primeira disponível
+        const targetSheet = sheetNames.find(s => /viterra|vtsa/i.test(s)) || sheetNames[0];
+        const rows2d = raw2d[targetSheet] || [];
+        let cargas = parseCargasFromRaw(rows2d);
+        // Fallback: tenta header-based
+        if (!cargas.length) cargas = parseCargasSheet(rows);
+        if (cargas.length) { CARGAS = cargas; updated = true; }
+      } else if (isIes && raw2d) {
+        setLoading(true, 'Processando IEs...');
+        const rows2d = raw2d[sheetNames[0]] || [];
+        let result = parseIesFromRaw(rows2d, workbook);
+        // Fallback: header-based
+        if (!result.ies.length) result = parseIesSheet(rows);
+        if (result.ies.length) { IES = result.ies; updated = true; }
+        if (result.errors.length) showToast(result.errors[0], 'error');
+      } else {
+        // Nome não reconhecido: tenta todas as sheets como cargas E como IEs
+        setLoading(true, 'Detectando tipo de planilha...');
+        let found = false;
+
+        if (raw2d && sheetNames) {
+          // Tenta cargas em cada sheet (priorizando sheet com VITERRA/VTSA no nome)
+          const ordered = [...sheetNames].sort((a,b) =>
+            (/viterra|vtsa/i.test(b) ? 1 : 0) - (/viterra|vtsa/i.test(a) ? 1 : 0)
+          );
+          for (const sName of ordered) {
+            const r2d = raw2d[sName] || [];
+            const cargas = parseCargasFromRaw(r2d);
+            if (cargas.length) { CARGAS = cargas; updated = true; found = true; break; }
+          }
+          // Tenta IEs na primeira sheet
+          if (!found) {
+            const r2d = raw2d[sheetNames[0]] || [];
+            const result = parseIesFromRaw(r2d, workbook);
+            if (result.ies.length) { IES = result.ies; updated = true; found = true; }
+          }
+        }
+
+        // Fallback header-based
+        if (!found && rows.length) {
+          const cargas = parseCargasSheet(rows);
+          if (cargas.length) { CARGAS = cargas; updated = true; found = true; }
+        }
+        if (!found && rows.length) {
+          const result = parseIesSheet(rows);
+          if (result.ies.length) { IES = result.ies; updated = true; }
+        }
+      }
+    }
+
+    if (!updated) {
+      setLoading(false);
+      showError('Não foi possível interpretar os dados. Verifique se os arquivos são as planilhas corretas.');
+      statusEl.style.display = 'none';
+      return;
+    }
+
+    // Rebuild all derived data
+    // CRUZAMENTO: usa lotes do contrato para dar baixa automática nas IEs
+    if (CARGAS.length && IES.length) {
+      crossReferenceIEsWithCargas();
+    }
+    updateMapaFromIES();
+    WEEKS = rebuildWeeks();
+    rebuildLoteIE();
+    
+    if (CARGAS.length && !selDay) selDay = CARGAS[0].dt;
+    curWeek = 0;
+    grafOk = false;
+    destroyCharts();
+
+    saveToStorage();
+    setLoading(false);
+    
+    statusEl.textContent = `✓ ${CARGAS.length} cargas e ${IES.length} IEs carregadas! Baixa automática aplicada.`;
+    showToast(`${CARGAS.length} cargas importadas`, 'success');
+    
+    setTimeout(() => {
+      closeModal();
+      S(curScreen || 'dash');
+    }, 1500);
+
+  } catch (err) {
+    setLoading(false);
+    showError('Erro ao processar: ' + err.message);
+    statusEl.style.display = 'none';
+    console.error(err);
+  }
+}
+
+// ========== INITIALIZATION ==========
+async function init() {
+  setLoading(true, 'Carregando dashboard...');
+  
+  if (!loadFromStorage()) {
+    IES = JSON.parse(JSON.stringify(DEFAULT_IES));
+    MAPA = JSON.parse(JSON.stringify(DEFAULT_MAPA));
+    CARGAS = JSON.parse(JSON.stringify(DEFAULT_CARGAS));
+    saveToStorage();
+  }
+  
+  WEEKS = rebuildWeeks();
+  rebuildLoteIE();
+  // CRUZAMENTO: re-aplica baixa automática via cargas sempre que iniciar
+  if (CARGAS.length && IES.length) {
+    crossReferenceIEsWithCargas();
+    rebuildLoteIE(); // reconstruir depois do cruzamento
+  }
+  updateMapaFromIES();
+  
+  if (CARGAS.length) selDay = CARGAS[0].dt;
+  curWeek = 0;
+  
+  renderDash();
+  setLoading(false);
+  showToast('Dashboard pronto! Clique no status para um tour.', 'info');
+}
+
+init();
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").then(() => console.log("SW registrado")).catch(console.error);
+}
+</script>
+</body>
+</html>
