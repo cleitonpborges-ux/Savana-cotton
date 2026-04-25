@@ -659,6 +659,112 @@ body::before {
   .nb { padding: 7px 12px; font-size: 11px; }
   .wgr { gap: 6px; }
 }
+
+/* ─── GEAR BUTTON ─── */
+.gear-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--text2);
+  transition: all .25s;
+  flex-shrink: 0;
+}
+.gear-btn:hover {
+  background: var(--bg4);
+  border-color: var(--green);
+  color: var(--green);
+  transform: rotate(45deg);
+}
+.gear-btn svg { width: 18px; height: 18px; }
+
+/* ─── SETTINGS PANEL ─── */
+.settings-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.7);
+  backdrop-filter: blur(6px);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+.settings-overlay.open { display: flex; }
+.settings-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  padding: 32px;
+  width: 420px;
+  max-width: 96vw;
+  animation: modalIn .25s ease-out;
+}
+.settings-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.settings-sub {
+  font-size: 12px;
+  color: var(--text3);
+  margin-bottom: 28px;
+}
+.settings-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 20px 0;
+}
+.settings-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all .2s;
+  background: var(--bg3);
+}
+.settings-item:hover { border-color: var(--border2); background: var(--bg4); }
+.settings-item:hover .settings-item-icon { transform: scale(1.1); }
+.settings-item-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  transition: transform .2s;
+}
+.settings-item-icon.green  { background: rgba(0,229,160,.15); }
+.settings-item-icon.blue   { background: rgba(59,142,240,.15); }
+.settings-item-icon.red    { background: rgba(255,92,92,.15); }
+.settings-item-body { flex: 1; }
+.settings-item-label { font-size: 14px; font-weight: 600; color: var(--text); }
+.settings-item-desc  { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.settings-item-arrow { color: var(--text3); font-size: 16px; }
+.settings-close {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  color: var(--text3);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.settings-close:hover { border-color: var(--border2); color: var(--text); }
+
 </style>
 </head>
 <body>
@@ -677,6 +783,51 @@ body::before {
 <div id="tourTooltip" class="tour-tooltip" style="display: none;"></div>
 
 <!-- IMPORT MODAL -->
+<!-- SETTINGS PANEL -->
+<div class="settings-overlay" id="settingsOverlay">
+  <div class="settings-panel">
+    <div class="settings-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" width="20" height="20" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+      Configurações
+    </div>
+    <div class="settings-sub">Área administrativa · Acesso restrito</div>
+
+    <div class="settings-item" onclick="settingsImport()">
+      <div class="settings-item-icon green">📥</div>
+      <div class="settings-item-body">
+        <div class="settings-item-label">Importar Planilhas</div>
+        <div class="settings-item-desc">Atualiza os dados para todos os usuários</div>
+      </div>
+      <span class="settings-item-arrow">›</span>
+    </div>
+
+    <div class="settings-item" onclick="settingsExport()">
+      <div class="settings-item-icon blue">📤</div>
+      <div class="settings-item-body">
+        <div class="settings-item-label">Exportar Dados</div>
+        <div class="settings-item-desc">Baixa os dados atuais em JSON</div>
+      </div>
+      <span class="settings-item-arrow">›</span>
+    </div>
+
+    <div class="settings-divider"></div>
+
+    <div class="settings-item" onclick="settingsReset()">
+      <div class="settings-item-icon red">🔄</div>
+      <div class="settings-item-body">
+        <div class="settings-item-label">Resetar Cache</div>
+        <div class="settings-item-desc">Limpa o cache local e recarrega dados padrão</div>
+      </div>
+      <span class="settings-item-arrow">›</span>
+    </div>
+
+    <button class="settings-close" onclick="closeSettings()">Fechar</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal">
   <div class="modal">
     <div class="modal-title">📥 Importar Planilhas</div>
@@ -716,24 +867,11 @@ body::before {
     </div>
     <div class="header-right">
       <div class="status-dot" id="statusDot" onclick="showTour()">🎓 TOUR</div>
-
-      <button class="export-btn" style="background:linear-gradient(135deg,#FF5C5C,#c0392b);" onclick="resetAndReload()" title="Limpa o cache e recarrega dados padrão">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M2 8a6 6 0 1 0 1.5-3.9M2 2v4h4"/>
+      <button class="gear-btn" onclick="openSettings()" title="Configurações">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
         </svg>
-        Resetar Cache
-      </button>
-      <button class="export-btn" onclick="exportData()">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M8 2v8M4 6l4 4 4-4M2 12h12"/>
-        </svg>
-        Exportar Dados
-      </button>
-      <button class="import-btn" onclick="openModal()">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M8 2v8M4 7l4 4 4-4M2 12h12"/>
-        </svg>
-        Importar Planilhas
       </button>
     </div>
   </div>
@@ -2160,13 +2298,37 @@ function renderGraf() {
 // ========== IMPORT PROCESS ==========
 let selectedFiles = [];
 
-function openModal() {
+// ── Settings panel ──
+function openSettings() {
   const pwd = prompt('🔒 Senha de administrador:');
-  if (pwd === null) return; // cancelou
+  if (pwd === null) return;
   if (pwd !== ADMIN_PASSWORD) {
     showToast('Senha incorreta. Acesso negado.', 'error');
     return;
   }
+  document.getElementById('settingsOverlay').classList.add('open');
+}
+function closeSettings() {
+  document.getElementById('settingsOverlay').classList.remove('open');
+}
+function settingsImport() {
+  closeSettings();
+  document.getElementById('modal').classList.add('open');
+  selectedFiles = [];
+  renderFileList();
+  document.getElementById('importError').style.display = 'none';
+  document.getElementById('importStatus').style.display = 'none';
+}
+function settingsExport() {
+  closeSettings();
+  exportData();
+}
+function settingsReset() {
+  closeSettings();
+  resetAndReload();
+}
+// ── Import modal ──
+function openModal() {
   document.getElementById('modal').classList.add('open');
   selectedFiles = [];
   renderFileList();
@@ -2179,6 +2341,9 @@ function closeModal() {
 
 document.getElementById('modal').addEventListener('click', e => {
   if (e.target === document.getElementById('modal')) closeModal();
+});
+document.getElementById('settingsOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('settingsOverlay')) closeSettings();
 });
 
 const dropZone = document.getElementById('dropZone');
