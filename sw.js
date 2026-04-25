@@ -1,4 +1,4 @@
-const CACHE = 'viterra-v2';
+const CACHE = 'viterra-v3';
 
 self.addEventListener('install', e => {
   self.skipWaiting();

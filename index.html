@@ -716,10 +716,7 @@ body::before {
     </div>
     <div class="header-right">
       <div class="status-dot" id="statusDot" onclick="showTour()">🎓 TOUR</div>
-      <button class="export-btn" style="background:linear-gradient(135deg,#3B8EF0,#1D5FA5);font-size:12px;" onclick="refreshFromCloud()" title="Buscar dados mais recentes da nuvem">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M13.5 8A5.5 5.5 0 1 1 10 3.2M13.5 2v3.5H10"/></svg>
-        Atualizar
-      </button>
+
       <button class="export-btn" style="background:linear-gradient(135deg,#FF5C5C,#c0392b);" onclick="resetAndReload()" title="Limpa o cache e recarrega dados padrão">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M2 8a6 6 0 1 0 1.5-3.9M2 2v4h4"/>
@@ -986,7 +983,7 @@ async function saveToStorage() {
 }
 
 // Load from JSONBin (all users)
-async function loadFromStorage() {
+async function loadFromStorage(silent = false) {
   // Se não tem BIN configurado, usa localStorage
   if (false) { // BIN configurado
     const cache = localStorage.getItem('viterra_cache');
@@ -994,7 +991,7 @@ async function loadFromStorage() {
       const d = JSON.parse(cache);
       IES = d.IES; MAPA = d.MAPA; CARGAS = d.CARGAS;
       document.getElementById('statusDot').innerHTML = `📦 LOCAL`;
-      showToast('⚠️ Configure o JSONBin para compartilhar dados', 'info');
+      if (!silent) showToast('⚠️ Configure o JSONBin para compartilhar dados', 'info');
       return true;
     }
     return false;
@@ -1014,7 +1011,7 @@ async function loadFromStorage() {
       localStorage.setItem('viterra_cache_ts', Date.now());
       const ts = d.updatedAt ? new Date(d.updatedAt).toLocaleString('pt-BR') : '';
       document.getElementById('statusDot').innerHTML = `☁️ ${ts}`;
-      showToast('Dados atualizados da nuvem', 'success');
+      if (!silent) showToast('Dados atualizados da nuvem', 'success');
       return true;
     }
   } catch(e) {
@@ -1024,7 +1021,7 @@ async function loadFromStorage() {
       const d = JSON.parse(cache);
       IES = d.IES; MAPA = d.MAPA; CARGAS = d.CARGAS;
       document.getElementById('statusDot').innerHTML = `📦 CACHE`;
-      showToast('Sem conexão — usando cache local', 'info');
+      if (!silent) showToast('Sem conexão — usando cache local', 'info');
       return true;
     }
     console.error(e);
@@ -2393,6 +2390,21 @@ async function init() {
   renderDash();
   setLoading(false);
   showToast('Dashboard pronto! Clique no status para um tour.', 'info');
+
+  // Auto-refresh da nuvem a cada 30 segundos
+  setInterval(async () => {
+    const loaded = await loadFromStorage(true);
+    if (loaded) {
+      WEEKS = rebuildWeeks();
+      rebuildLoteIE();
+      if (CARGAS.length && IES.length) { crossReferenceIEsWithCargas(); rebuildLoteIE(); }
+      updateMapaFromIES();
+      if (CARGAS.length && !selDay) selDay = CARGAS[0].dt;
+      grafOk = false;
+      destroyCharts();
+      renderDash();
+    }
+  }, 30000);
 }
 
 init();
