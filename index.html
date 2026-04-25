@@ -1098,7 +1098,8 @@ const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
 
 // Save to JSONBin (admin only)
 async function saveToStorage() {
-  const payload = { IES, MAPA, CARGAS, updatedAt: new Date().toISOString() };
+  const mapaToSave = (!Array.isArray(MAPA) && Object.keys(MAPA).length > 0) ? MAPA : DEFAULT_MAPA;
+  const payload = { IES, MAPA: mapaToSave, CARGAS, updatedAt: new Date().toISOString() };
   try {
     const res = await fetch(JSONBIN_URL, {
       method: 'PUT',
@@ -1143,7 +1144,14 @@ async function loadFromStorage(silent = false) {
     const json = await res.json();
     const d = json.record;
     if (d && d.IES && d.CARGAS) {
-      IES = d.IES; MAPA = d.MAPA; CARGAS = d.CARGAS;
+      IES = d.IES;
+      CARGAS = d.CARGAS;
+      // Só usa MAPA da nuvem se for um objeto com chaves (não array vazio)
+      if (d.MAPA && !Array.isArray(d.MAPA) && Object.keys(d.MAPA).length > 0) {
+        MAPA = d.MAPA;
+      } else {
+        MAPA = JSON.parse(JSON.stringify(DEFAULT_MAPA));
+      }
       // Atualiza cache local
       localStorage.setItem('viterra_cache', JSON.stringify(d));
       localStorage.setItem('viterra_cache_ts', Date.now());
@@ -1157,7 +1165,13 @@ async function loadFromStorage(silent = false) {
     const cache = localStorage.getItem('viterra_cache');
     if (cache) {
       const d = JSON.parse(cache);
-      IES = d.IES; MAPA = d.MAPA; CARGAS = d.CARGAS;
+      IES = d.IES;
+      CARGAS = d.CARGAS;
+      if (d.MAPA && !Array.isArray(d.MAPA) && Object.keys(d.MAPA).length > 0) {
+        MAPA = d.MAPA;
+      } else {
+        MAPA = JSON.parse(JSON.stringify(DEFAULT_MAPA));
+      }
       document.getElementById('statusDot').innerHTML = `📦 CACHE`;
       if (!silent) showToast('Sem conexão — usando cache local', 'info');
       return true;
