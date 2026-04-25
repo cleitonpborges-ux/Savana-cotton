@@ -1963,12 +1963,12 @@ function S(name) {
   const names = ['dash', 'diario', 'mapa', 'graf'];
   const btns = document.querySelectorAll('.nb');
   names.forEach((n, i) => { if (n === name) btns[i].classList.add('active'); });
-  
-  destroyCharts();
-  if (name === 'graf') renderGraf();
-  if (name === 'mapa') renderMapa();
-  if (name === 'diario') renderDiario();
-  if (name === 'dash') renderDash();
+
+  // Só destrói gráficos ao sair da tela de gráficos ou ao entrar nela do zero
+  if (name === 'graf') { destroyCharts(); renderGraf(); }
+  else if (name === 'mapa') { renderMapa(); }
+  else if (name === 'diario') { renderDiario(); }
+  else if (name === 'dash') { renderDash(); }
 }
 
 function fmt(dt) {
@@ -2522,9 +2522,13 @@ async function refreshFromCloud() {
     rebuildLoteIE();
     if (CARGAS.length && IES.length) { crossReferenceIEsWithCargas(); rebuildLoteIE(); }
     updateMapaFromIES();
-    if (CARGAS.length) selDay = CARGAS[0].dt;
-    curWeek = 0; grafOk = false; destroyCharts();
-    renderDash();
+    if (CARGAS.length && !selDay) selDay = CARGAS[0].dt;
+    curWeek = 0;
+    // Re-renderiza a tela atual
+    if (curScreen === 'graf') { destroyCharts(); renderGraf(); }
+    else if (curScreen === 'mapa') { renderMapa(); }
+    else if (curScreen === 'diario') { renderDiario(); }
+    else { renderDash(); }
   }
   setLoading(false);
 }
@@ -2559,16 +2563,25 @@ async function init() {
   // Auto-refresh da nuvem a cada 30 segundos
   setInterval(async () => {
     const loaded = await loadFromStorage(true);
-    if (loaded) {
-      WEEKS = rebuildWeeks();
-      rebuildLoteIE();
-      if (CARGAS.length && IES.length) { crossReferenceIEsWithCargas(); rebuildLoteIE(); }
-      updateMapaFromIES();
-      if (CARGAS.length && !selDay) selDay = CARGAS[0].dt;
-      grafOk = false;
-      destroyCharts();
+    if (!loaded) return;
+
+    // Rebuilds de dados (sem tocar na UI ainda)
+    WEEKS = rebuildWeeks();
+    rebuildLoteIE();
+    if (CARGAS.length && IES.length) { crossReferenceIEsWithCargas(); rebuildLoteIE(); }
+    updateMapaFromIES();
+    if (CARGAS.length && !selDay) selDay = CARGAS[0].dt;
+
+    // Só atualiza a tela que o usuário está vendo
+    if (curScreen === 'dash') {
       renderDash();
+    } else if (curScreen === 'diario') {
+      renderDiario();
+    } else if (curScreen === 'mapa') {
+      renderMapa();
     }
+    // Na tela de gráficos: NÃO interrompe — usuário pode estar analisando.
+    // Os dados novos serão aplicados quando ele trocar de tela e voltar.
   }, 30000);
 }
 
