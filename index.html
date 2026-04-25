@@ -925,7 +925,7 @@ body::before {
       <div class="li"><div class="ld" style="background:var(--bg4);border:1px solid var(--border2);opacity:.5;"></div><span>Cor suave = pendente</span></div>
       <div class="li"><div class="ld" style="background:var(--bg3);border:1px solid var(--border);"></div><span>Sem IE atribuída</span></div>
     </div>
-    <div class="card" style="padding:16px 20px; max-height: 60vh; overflow-y: auto;"><div id="mapcont"></div></div>
+    <div class="card" style="padding:16px 20px; overflow-y: auto;"><div id="mapcont" style="min-height:100px;"></div></div>
   </div>
 
   <!-- GRÁFICOS -->
@@ -2220,6 +2220,16 @@ function renderDay(dt) {
 
 // ========== RENDER MAPA ==========
 function renderMapa() {
+  console.log('[MAPA] renderMapa called. MAPA keys:', Object.keys(MAPA).length, 'MAPA type:', typeof MAPA, 'isArray:', Array.isArray(MAPA));
+  console.log('[MAPA] LOTE_IE keys:', Object.keys(LOTE_IE).length);
+  console.log('[MAPA] IES length:', IES.length);
+
+  // Safety: if MAPA is empty/invalid, use DEFAULT_MAPA
+  if (!MAPA || Array.isArray(MAPA) || Object.keys(MAPA).length === 0) {
+    console.warn('[MAPA] MAPA is empty or invalid — falling back to DEFAULT_MAPA');
+    MAPA = JSON.parse(JSON.stringify(DEFAULT_MAPA));
+  }
+
   document.getElementById('mleg').innerHTML =
     IES.map(ie => `<div class="li"><div class="ld" style="background:${ie.color};"></div>${ie.name}</div>`).join('') +
     '<div class="li"><div class="ld" style="background:var(--bg4);border:1px solid var(--border2);"></div>Sem IE</div>';
