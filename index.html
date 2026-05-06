@@ -923,9 +923,13 @@ body::before {
 .fila-tipo-badge {
   font-family: var(--font-mono);
   font-size: 11px;
-  padding: 3px 8px;
+  padding: 3px 10px 3px 8px;
   border-radius: 4px;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
 }
 .fila-alerta-mistura {
   background: rgba(255,92,92,.12);
@@ -3388,7 +3392,15 @@ function parseFila(rows2d) {
     if (horaSaida)   status = 'concluido';
     else if (horaEntrada) status = 'em_carregamento';
 
-    result.push({ pos, transportadora: transp, placa, ie, lotes, lotes_fardos: {}, fardos_total: fardos, hora_entrada: horaEntrada, hora_saida: horaSaida, entrada_ts: entradaR.ts, saida_ts: saidaR.ts, status });
+    // Estima lotes_fardos distribuindo fardos igualmente quando não há detalhe por lote
+    const lotes_fardosTabular = {};
+    if (lotes.length > 0 && fardos > 0) {
+      const fdsPorLote = Math.round(fardos / lotes.length);
+      lotes.forEach((l, i) => {
+        lotes_fardosTabular[l] = (i === lotes.length - 1) ? (fardos - fdsPorLote * (lotes.length - 1)) : fdsPorLote;
+      });
+    }
+    result.push({ pos, transportadora: transp, placa, ie, lotes, lotes_fardos: lotes_fardosTabular, fardos_total: fardos, hora_entrada: horaEntrada, hora_saida: horaSaida, entrada_ts: entradaR.ts, saida_ts: saidaR.ts, status });
   }
   return result.sort((a, b) => a.pos - b.pos);
 }
@@ -3464,12 +3476,20 @@ function calcTaktTime() {
   // Usa os caminhões concluídos da FILA com timestamps reais
   const concluidos = FILA.filter(c => c.status === 'concluido' && c.entrada_ts && c.saida_ts);
   if (concluidos.length > 0) {
-    // Período: do primeiro caminhão que entrou até o último que saiu
+    const totalFardos = concluidos.reduce((s, c) => s + (c.fardos_total || 0), 0);
+    if (totalFardos <= 0) return null; // sem fardos informados, não calcula
+
+    if (concluidos.length === 1) {
+      // 1 caminhão: usa o tempo de operação dele mesmo
+      const c0 = concluidos[0];
+      const horasOp = Math.max(0.05, (c0.saida_ts - c0.entrada_ts) / 3600000);
+      return Math.round(totalFardos / horasOp);
+    }
+    // 2+ caminhões: usa período do primeiro que entrou até o último que saiu
     const primeiraEntrada = Math.min(...concluidos.map(c => c.entrada_ts));
     const ultimaSaida     = Math.max(...concluidos.map(c => c.saida_ts));
     const horasDecorridas = Math.max(0.1, (ultimaSaida - primeiraEntrada) / 3600000);
-    const totalFardos     = concluidos.reduce((s, c) => s + (c.fardos_total || 0), 0);
-    if (totalFardos > 0) return Math.round(totalFardos / horasDecorridas);
+    return Math.round(totalFardos / horasDecorridas);
   }
 
   // Fallback: fardos de hoje no CARGAS desde TURNO_INICIO
@@ -3578,9 +3598,13 @@ function renderFila() {
 
     const lotesHTML = c.lotes && c.lotes.length
       ? c.lotes.map(l => {
-          const tipo = LOTE_TIPO[l];
-          const tipoBg = tipo ? tipoCor(tipo) : 'rgba(255,255,255,.06)';
-          return `<span class="fila-tipo-badge" style="background:${tipoBg};color:var(--text);" title="Lote ${l}${tipo ? ' · Tipo '+tipo : ''}">L${l}${tipo ? ` <small style="opacity:.7">${tipo}</small>` : ''}</span>`;
+          const tipo    = LOTE_TIPO[l];
+          const fdsLote = (c.lotes_fardos && c.lotes_fardos[l] != null) ? c.lotes_fardos[l] : null;
+          const tipoBg  = tipo ? tipoCor(tipo) : 'rgba(255,255,255,.06)';
+          const fdsStr  = fdsLote != null ? fdsLote + 'F' : '';
+          const tipoStr = tipo || '';
+          const detalhes = [fdsStr, tipoStr].filter(Boolean).join(' ');
+          return `<span class="fila-tipo-badge" style="background:${tipoBg};color:var(--text);" title="Lote ${l}${fdsLote != null ? ' · '+fdsLote+' fardos' : ''}${tipo ? ' · Tipo '+tipo : ''}">L${l}${detalhes ? `<span style="opacity:.72;margin-left:5px;font-size:10px;letter-spacing:.01em;">${detalhes}</span>` : ''}</span>`;
         }).join('')
       : '<span style="color:var(--text3);font-size:11px;">Lotes não informados</span>';
 
@@ -3664,8 +3688,8 @@ function renderVelocimetro() {
   if (concluidosComTS.length > 0) {
     const primeiraEntrada = Math.min(...concluidosComTS.map(c => c.entrada_ts));
     const d = new Date(primeiraEntrada);
-    const hh = String(d.getUTCHours()).padStart(2,'0');
-    const mi = String(d.getUTCMinutes()).padStart(2,'0');
+    const hh = String(d.getHours()).padStart(2,'0');
+    const mi = String(d.getMinutes()).padStart(2,'0');
     ritmoSub = `fardos / hora · desde ${hh}:${mi} (${concluidosComTS.length} caminhão${concluidosComTS.length>1?'s':''})`;
   } else if (TURNO_INICIO) {
     ritmoSub = `fardos / hora · desde ${TURNO_INICIO}`;
@@ -3796,7 +3820,17 @@ function adicionarCaminhao() {
   const lotes = lotesStr.split(/[,;\s]+/).map(l => parseInt(l)).filter(l => l > 0);
   const pos = FILA.filter(c => c.status !== 'concluido').length + 1;
 
-  FILA.push({ pos, transportadora: transp || '—', placa, ie, lotes, fardos_total: fardos, hora_entrada: hora, status: 'pendente' });
+  // Preenche lotes_fardos distribuindo fardos entre lotes como estimativa
+  const lotes_fardos = {};
+  if (lotes.length > 0 && fardos > 0) {
+    const fdsPorLote = Math.round(fardos / lotes.length);
+    lotes.forEach((l, i) => {
+      // Último lote recebe o restante pra fechar o total
+      lotes_fardos[l] = (i === lotes.length - 1) ? (fardos - fdsPorLote * (lotes.length - 1)) : fdsPorLote;
+    });
+  }
+
+  FILA.push({ pos, transportadora: transp || '—', placa, ie, lotes, lotes_fardos, fardos_total: fardos, hora_entrada: hora, status: 'pendente' });
   saveToStorage();
   closeFilaModal();
   renderFila();
