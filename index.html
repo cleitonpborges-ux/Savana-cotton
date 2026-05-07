@@ -125,9 +125,12 @@ body::before {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 28px;
+  margin-bottom: 12px;
   gap: 16px;
   flex-wrap: wrap;
+}
+#progresso-contrato {
+  margin-bottom: 16px;
 }
 .header-eyebrow {
   font-family: var(--font-mono);
@@ -1246,6 +1249,21 @@ body::before {
       <div class="header-title">VITERRA <span>·</span> VTSA01731/25</div>
       <div class="header-sub">Entrega Abr–Jun/2026 &nbsp;·&nbsp; 30.813 fardos comprometidos &nbsp;·&nbsp; Algodoeira Instrucoes</div>
     </div>
+    <!-- CARD PTAX -->
+    <div id="ptax-card" style="padding:10px 16px;font-family:var(--font-mono);min-width:220px;">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:5px;"></span>
+        PTAX · USD/BRL<span id="ptax-data" style="margin-left:6px;color:var(--text3);"></span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:10px;">
+        <span id="ptax-valor" style="font-size:26px;font-weight:700;color:var(--green);">—</span>
+        <div style="font-size:11px;color:var(--text2);line-height:1.7;">
+          <div>Compra: <span id="ptax-compra" style="color:var(--text);">—</span></div>
+          <div>Venda: <span id="ptax-venda" style="color:var(--text);">—</span></div>
+        </div>
+      </div>
+    </div>
+
     <div class="header-right">
       <div class="status-dot" id="statusDot" onclick="showTour()">🎓 TOUR</div>
       <button class="gear-btn" onclick="openSettings()" title="Configurações">
@@ -1256,6 +1274,8 @@ body::before {
       </button>
     </div>
   </div>
+
+  <div id="progresso-contrato"></div>
 
   <!-- NAV -->
   <div class="nav">
@@ -1269,7 +1289,10 @@ body::before {
   <!-- DASHBOARD -->
   <div id="scr-dash" class="scr active">
     <div class="mets" id="top-mets"></div>
-    <p class="stitle">Status por instrução de embarque</p>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;font-family:var(--font-mono);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;">
+      <span style="white-space:nowrap;">Status por instrução de embarque</span>
+      <div id="progresso-ie-header" style="flex:1;display:flex;align-items:center;gap:8px;min-width:0;"></div>
+    </div>
     <div class="card" id="ie-progs"></div>
     <p class="stitle">Contrato</p>
     <div class="contrato-card">
@@ -1282,7 +1305,6 @@ body::before {
       </div>
       <div class="pb"><div class="pf" id="contrato-bar" style="background: linear-gradient(90deg, var(--blue), var(--blue2));"></div></div>
       <div style="display:flex;justify-content:space-between;margin-top:8px;font-family:var(--font-mono);font-size:11px;color:var(--text3);" id="contrato-leg"></div>
-      <div id="progresso-contrato"></div>
     </div>
     <div class="alert-box" id="pend-alert"></div>
   </div>
@@ -1298,6 +1320,17 @@ body::before {
 
   <!-- MAPA -->
   <div id="scr-mapa" class="scr">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+      <div style="position:relative;flex:1;max-width:280px;">
+        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none;">🔍</span>
+        <input id="mapa-search" type="number" placeholder="Buscar lote..." oninput="buscaLote(this.value)"
+          style="width:100%;padding:8px 12px 8px 34px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-mono);font-size:13px;outline:none;box-sizing:border-box;"
+          onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'">
+        <button onclick="limparBuscaLote()" title="Limpar"
+          style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;line-height:1;padding:0;">✕</button>
+      </div>
+      <span id="mapa-search-result" style="font-family:var(--font-mono);font-size:12px;color:var(--text3);"></span>
+    </div>
     <div class="leg" id="mleg"></div>
     <div style="display:flex;gap:18px;margin-bottom:14px;flex-wrap:wrap;">
       <div class="li"><div class="ld" style="background:var(--green);"></div><span>Cor intensa = concluído</span></div>
@@ -1653,6 +1686,8 @@ async function loadFromStorage(silent = false) {
           if (seen.has(h.data_iso)) return false;
           seen.add(h.data_iso); return true;
         });
+        // Ordena sempre do mais recente para o mais antigo
+        HISTORICO_DIA.sort((a, b) => a.data_iso.localeCompare(b.data_iso));
         // Se removeu duplicatas, salva de volta na nuvem imediatamente
         if (HISTORICO_DIA.length < antes) saveToStorage();
       }
@@ -1689,6 +1724,8 @@ async function loadFromStorage(silent = false) {
           if (seen.has(h.data_iso)) return false;
           seen.add(h.data_iso); return true;
         });
+        // Ordena sempre do mais recente para o mais antigo
+        HISTORICO_DIA.sort((a, b) => a.data_iso.localeCompare(b.data_iso));
       }
       if (d.MAPA && !Array.isArray(d.MAPA) && Object.keys(d.MAPA).length > 0) {
         MAPA = d.MAPA;
@@ -2572,22 +2609,64 @@ function renderDash() {
   const TOTAL_CONTRATO = 30813;
   const pctContrato = Math.round(doneFardos / TOTAL_CONTRATO * 100);
   const progressoEl = document.getElementById('progresso-contrato');
+  const progressoIEHeader = document.getElementById('progresso-ie-header');
+  const progressoHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;">Progresso do Contrato</span>
+        <span style="font-family:var(--font-mono);font-size:16px;font-weight:700;color:var(--green);">${pctContrato}%</span>
+      </div>
+      <div style="background:var(--bg4);border-radius:6px;height:8px;overflow:hidden;position:relative;">
+        <div style="height:100%;width:${Math.min(pctContrato,100)}%;background:linear-gradient(90deg,var(--green),var(--blue));border-radius:6px;transition:width .6s ease;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:5px;font-family:var(--font-mono);font-size:11px;color:var(--text3);">
+        <span>${doneFardos.toLocaleString('pt-BR')} fardos carregados</span>
+        <span>${TOTAL_CONTRATO.toLocaleString('pt-BR')} fardos comprometidos · faltam ${Math.max(0, TOTAL_CONTRATO - doneFardos).toLocaleString('pt-BR')}</span>
+      </div>
+  `;
+  if (progressoIEHeader) {
+    const pctIE = totalFardos ? Math.round(doneFardos / totalFardos * 100) : 0;
+    progressoIEHeader.innerHTML = `
+      <div style="background:var(--bg4);border-radius:6px;height:8px;overflow:hidden;flex:1;min-width:0;">
+        <div style="height:100%;width:${Math.min(pctIE,100)}%;background:linear-gradient(90deg,var(--blue),var(--blue2));border-radius:6px;transition:width .6s ease;"></div>
+      </div>
+      <span style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--blue);white-space:nowrap;">${doneFardos.toLocaleString('pt-BR')} / ${totalFardos.toLocaleString('pt-BR')} · ${pctIE}%</span>
+    `;
+  }
+
+  // Calcula lotes para exibir junto ao progresso
+  let lotesCheioDone = 0, lotesQuebradoDone = 0;
+  IES.forEach(ie => {
+    ie.lotes_done.forEach(lote => {
+      const f = ie.lotes_fardos[lote] || 110;
+      if (f === 110) lotesCheioDone++; else lotesQuebradoDone++;
+    });
+  });
+  const totalLotesDone = lotesCheioDone + lotesQuebradoDone;
+
   if (progressoEl) {
     progressoEl.innerHTML = `
-      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div style="margin-top:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
           <span style="font-family:var(--font-mono);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;">Progresso do Contrato</span>
-          <span style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--green);">${pctContrato}%</span>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--text3);" id="header-lotes-info"></span>
+            <span style="font-family:var(--font-mono);font-size:16px;font-weight:700;color:var(--green);">${pctContrato}%</span>
+          </div>
         </div>
-        <div style="background:var(--bg4);border-radius:6px;height:10px;overflow:hidden;position:relative;">
+        <div style="background:var(--bg4);border-radius:6px;height:8px;overflow:hidden;position:relative;">
           <div style="height:100%;width:${Math.min(pctContrato,100)}%;background:linear-gradient(90deg,var(--green),var(--blue));border-radius:6px;transition:width .6s ease;"></div>
         </div>
-        <div style="display:flex;justify-content:space-between;margin-top:6px;font-family:var(--font-mono);font-size:11px;color:var(--text3);">
+        <div style="display:flex;justify-content:space-between;margin-top:5px;font-family:var(--font-mono);font-size:11px;color:var(--text3);">
           <span>${doneFardos.toLocaleString('pt-BR')} fardos carregados</span>
           <span>${TOTAL_CONTRATO.toLocaleString('pt-BR')} fardos comprometidos · faltam ${Math.max(0, TOTAL_CONTRATO - doneFardos).toLocaleString('pt-BR')}</span>
         </div>
       </div>
     `;
+    // agora o elemento existe no DOM, preenche os lotes
+    const headerLotesInfoEl = document.getElementById('header-lotes-info');
+    if (headerLotesInfoEl) {
+      headerLotesInfoEl.innerHTML = `<span style="color:var(--green);font-weight:700;">${lotesCheioDone}</span><span> cheios · </span><span style="color:var(--blue);font-weight:700;">${lotesQuebradoDone}</span><span> quebr. · </span><span style="color:var(--text);font-weight:700;">${totalLotesDone}</span><span> lotes</span>`;
+    }
   }
   
   const badge = document.getElementById('contrato-badge');
@@ -2796,13 +2875,67 @@ function renderMapa() {
       const bg = info ? info.ie.color : 'var(--bg4)';
       const fg = info ? '#000' : 'var(--text3)';
       const op = info ? (info.done ? '1' : '0.4') : '0.7';
-      return `<div class="lb" style="background:${bg};color:${fg};opacity:${op};" title="Lote ${l}${info ? ' · ' + info.ie.name + ' · ' + (info.done ? '✓ concluído' : '⏳ pendente') : ' · sem IE atribuída'}">${l}</div>`;
+      return `<div class="lb" id="lote-cell-${l}" style="background:${bg};color:${fg};opacity:${op};transition:box-shadow .2s,outline .2s;" title="Lote ${l}${info ? ' · ' + info.ie.name + ' · ' + (info.done ? '✓ concluído' : '⏳ pendente') : ' · sem IE atribuída'}">${l}</div>`;
     }).join('');
     return `<div class="mr"><div class="rl">${rua}</div><div class="lr">${boxes}</div></div>`;
   }).join('');
 }
 
-// ========== RENDER GRÁFICOS (média corrigida) ==========
+// ========== BUSCA LOTE NO MAPA ==========
+function buscaLote(val) {
+  // Remove destaque anterior
+  document.querySelectorAll('.lb-highlight').forEach(el => {
+    el.classList.remove('lb-highlight');
+    el.style.outline = '';
+    el.style.boxShadow = '';
+    el.style.zIndex = '';
+    el.style.position = '';
+  });
+
+  const result = document.getElementById('mapa-search-result');
+  const num = parseInt(val);
+  if (!val || isNaN(num)) { result.textContent = ''; return; }
+
+  const cell = document.getElementById(`lote-cell-${num}`);
+  if (!cell) {
+    result.textContent = `Lote ${num} não encontrado`;
+    result.style.color = 'var(--amber)';
+    return;
+  }
+
+  // Destaca a célula
+  cell.classList.add('lb-highlight');
+  cell.style.outline = '2px solid #fff';
+  cell.style.boxShadow = '0 0 0 4px rgba(255,255,255,.35), 0 0 16px rgba(255,255,255,.2)';
+  cell.style.position = 'relative';
+  cell.style.zIndex = '10';
+
+  // Scroll suave até o lote
+  cell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // Mostra info
+  const info = LOTE_IE[num];
+  if (info) {
+    const status = info.done ? '✅ concluído' : '⏳ pendente';
+    result.textContent = `L${num} · ${info.ie.name} · ${status}`;
+    result.style.color = info.done ? 'var(--green)' : 'var(--amber)';
+  } else {
+    result.textContent = `L${num} · sem IE atribuída`;
+    result.style.color = 'var(--text3)';
+  }
+}
+
+function limparBuscaLote() {
+  document.getElementById('mapa-search').value = '';
+  document.getElementById('mapa-search-result').textContent = '';
+  document.querySelectorAll('.lb-highlight').forEach(el => {
+    el.classList.remove('lb-highlight');
+    el.style.outline = '';
+    el.style.boxShadow = '';
+    el.style.zIndex = '';
+    el.style.position = '';
+  });
+}
 function renderGraf() {
   if (grafOk) return;
   grafOk = true;
@@ -4061,6 +4194,8 @@ function gerarResumoDia() {
   // Remove snapshot anterior do mesmo dia (substitui)
   HISTORICO_DIA = HISTORICO_DIA.filter(h => h.data_iso !== dataISO);
   HISTORICO_DIA.unshift(snapshot);
+  // Mantém sempre ordenado do mais recente para o mais antigo
+  HISTORICO_DIA.sort((a, b) => a.data_iso.localeCompare(b.data_iso));
 
   // Remove da fila os concluídos; reposiciona os pendentes como 1°, 2°, etc.
   const aindaPendentes = FILA.filter(c => c.status !== 'concluido');
@@ -4091,7 +4226,7 @@ function renderHistoricoCarousel() {
       mapaUnico[h.data_iso] = h;
     }
   });
-  const deduped = Object.values(mapaUnico).sort((a, b) => b.data_iso.localeCompare(a.data_iso));
+  const deduped = Object.values(mapaUnico).sort((a, b) => a.data_iso.localeCompare(b.data_iso));
   // Se havia duplicatas, limpa o array e salva
   if (deduped.length < HISTORICO_DIA.length) {
     HISTORICO_DIA = deduped;
@@ -4104,13 +4239,14 @@ function renderHistoricoCarousel() {
   }
   section.style.display = 'block';
 
-  scroll.innerHTML = HISTORICO_DIA.map((h, idx) => {
+  scroll.innerHTML = deduped.map((h) => {
     const m = h.metricas;
+    const dataIso = h.data_iso;
     return `<div class="snap-card" style="position:relative;" title="Clique para ver detalhes">
-      <button onclick="deletarCardHistorico(${idx});event.stopPropagation()" title="Remover card" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;opacity:0.15;font-size:13px;padding:2px 4px;color:var(--text3);transition:opacity .2s;z-index:2;" onmouseenter="this.style.opacity='.7'" onmouseleave="this.style.opacity='.15'">🗑</button>
-      <div class="snap-card-date" onclick="openSnapshotModal(${idx})">${h.label}</div>
-      <div class="snap-card-badge" onclick="openSnapshotModal(${idx})">✅ Finalizado</div>
-      <div class="snap-card-stats" onclick="openSnapshotModal(${idx})">
+      <button onclick="deletarCardHistorico('${dataIso}');event.stopPropagation()" title="Remover card" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;opacity:0.15;font-size:13px;padding:2px 4px;color:var(--text3);transition:opacity .2s;z-index:2;" onmouseenter="this.style.opacity='.7'" onmouseleave="this.style.opacity='.15'">🗑</button>
+      <div class="snap-card-date" onclick="openSnapshotModal('${dataIso}')">${h.label}</div>
+      <div class="snap-card-badge" onclick="openSnapshotModal('${dataIso}')">✅ Finalizado</div>
+      <div class="snap-card-stats" onclick="openSnapshotModal('${dataIso}')">
         <div class="snap-stat">
           <div class="snap-stat-val">${m.total_concluidos}</div>
           <div class="snap-stat-lbl">Cargas</div>
@@ -4142,16 +4278,16 @@ function renderHistoricoCarousel() {
   }
 }
 
-function deletarCardHistorico(idx) {
+function deletarCardHistorico(dataIso) {
   const pwd = prompt('🔒 Senha de administrador:');
   if (pwd === null) return;
   if (pwd !== ADMIN_PASSWORD) {
     showToast('Senha incorreta', 'error');
     return;
   }
-  const card = HISTORICO_DIA[idx];
+  const card = HISTORICO_DIA.find(h => h.data_iso === dataIso);
   if (!card) return;
-  HISTORICO_DIA.splice(idx, 1);
+  HISTORICO_DIA = HISTORICO_DIA.filter(h => h.data_iso !== dataIso);
   saveToStorage();
   renderFila();
   showToast(`🗑 Card "${card.label}" removido`, 'success');
@@ -4165,8 +4301,8 @@ function formatarIntervalo(min) {
   return m > 0 ? `${h}h ${m}min` : `${h}h`;
 }
 
-function openSnapshotModal(idx) {
-  _snapshotAtivo = HISTORICO_DIA[idx];
+function openSnapshotModal(dataIso) {
+  _snapshotAtivo = HISTORICO_DIA.find(h => h.data_iso === dataIso);
   if (!_snapshotAtivo) return;
   const h = _snapshotAtivo;
   const m = h.metricas;
@@ -4347,7 +4483,7 @@ async function limparDuplicatasHistorico() {
       mapa[h.data_iso] = h;
     }
   });
-  HISTORICO_DIA = Object.values(mapa).sort((a,b) => b.data_iso.localeCompare(a.data_iso));
+  HISTORICO_DIA = Object.values(mapa).sort((a,b) => a.data_iso.localeCompare(b.data_iso));
   if (HISTORICO_DIA.length < antes) {
     console.log(`Removidas ${antes - HISTORICO_DIA.length} duplicata(s) do histórico`);
     await saveToStorage();
@@ -4441,6 +4577,42 @@ function initWgrObserver(scroll) {
 })();
 </script>
 <script>
+// ========== PTAX BCB ==========
+async function fetchPTAX() {
+  try {
+    // Tenta os últimos 5 dias úteis para garantir dado disponível
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      if (d.getDay() === 0 || d.getDay() === 6) continue; // pula fim de semana
+      const dd = String(d.getDate()).padStart(2,'0');
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      const yyyy = d.getFullYear();
+      const dateStr = `${mm}-${dd}-${yyyy}`;
+      const url = `https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarDia(dataCotacao=@dataCotacao)?@dataCotacao='${dateStr}'&$top=1&$format=json`;
+      const res = await fetch(url);
+      const json = await res.json();
+      if (json.value && json.value.length > 0) {
+        const v = json.value[0];
+        const compra = v.cotacaoCompra.toFixed(4).replace('.',',');
+        const venda  = v.cotacaoVenda.toFixed(4).replace('.',',');
+        const medio  = ((v.cotacaoCompra + v.cotacaoVenda) / 2).toFixed(4).replace('.',',');
+        const dataFmt = `FECHAMENTO ${dd}/${mm}/${yyyy}`;
+        document.getElementById('ptax-data').textContent  = dataFmt;
+        document.getElementById('ptax-valor').textContent = `R$ ${medio}`;
+        document.getElementById('ptax-compra').textContent = `R$ ${compra}`;
+        document.getElementById('ptax-venda').textContent  = `R$ ${venda}`;
+        return;
+      }
+    }
+    document.getElementById('ptax-valor').textContent = 'Indisponível';
+  } catch(e) {
+    document.getElementById('ptax-valor').textContent = 'Erro';
+    console.error('PTAX erro:', e);
+  }
+}
+fetchPTAX();
+
 if ("serviceWorker" in navigator) {
   // Use relative path to work on any GitHub Pages subdirectory
   const swPath = location.pathname.replace(/\/[^\/]*$/, '/') + 'sw.js';
