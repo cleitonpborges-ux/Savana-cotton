@@ -4091,20 +4091,27 @@ function exportFilaWhatsApp() {
 
 let _snapshotAtivo = null; // referência ao snapshot sendo visualizado no modal
 
-function gerarResumoDia() {
+function gerarResumoDia(dataForcada) {
   const agora = new Date();
-  // Usa data LOCAL (não UTC) para evitar virada de dia errada em fuso GMT-3
-  const dataISO = `${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}-${String(agora.getDate()).padStart(2,'0')}`;
   const diasSemana = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
-  const diaNome = diasSemana[agora.getDay()];
-  const dataLabel = `${diaNome}, ${String(agora.getDate()).padStart(2,'0')}/${String(agora.getMonth()+1).padStart(2,'0')}`;
 
-  // Se já existe snapshot do dia atual, atualiza (pode ter novas cargas concluídas)
-  // Só bloqueia para dias passados
+  // dataForcada permite gerar retroativamente com data de ontem (quando app foi fechado antes das 19h)
+  let dataISO, dataLabel;
+  if (dataForcada) {
+    dataISO = dataForcada;
+    // Reconstrói label a partir da string YYYY-MM-DD
+    const [ano, mes, dia] = dataForcada.split('-').map(Number);
+    const dRef = new Date(ano, mes - 1, dia);
+    dataLabel = `${diasSemana[dRef.getDay()]}, ${String(dia).padStart(2,'0')}/${String(mes).padStart(2,'0')}`;
+  } else {
+    // Usa data LOCAL (não UTC) para evitar virada de dia errada em fuso GMT-3
+    dataISO = `${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}-${String(agora.getDate()).padStart(2,'0')}`;
+    dataLabel = `${diasSemana[agora.getDay()]}, ${String(agora.getDate()).padStart(2,'0')}/${String(agora.getMonth()+1).padStart(2,'0')}`;
+  }
+
+  // Se já existe snapshot deste dia, não regera (evita sobrescrever dado correto)
   const jaExiste = HISTORICO_DIA.find(h => h.data_iso === dataISO);
-  const hoje = jaExiste && jaExiste.data_iso === dataISO;
-  // Se é de outro dia que não hoje, não mexe
-  if (jaExiste && !hoje) return;
+  if (jaExiste) return;
   if (FILA.filter(c => c.status === 'concluido').length === 0) return;
 
   const concluidos = FILA.filter(c => c.status === 'concluido');
@@ -4447,28 +4454,80 @@ function exportSnapshotWhatsApp() {
 
 // ── Timer que dispara geração do snapshot às 19:00
 function iniciarTimerSnapshot() {
-  const HORA_FECHAMENTO = 19; // 19:00
+  const HORA_FECHAMENTO = 19;
+  let _snapshotGeradoData = null; // flag: guarda a data ISO do último snapshot gerado nesta sessão
+
+  function dataISOLocal(d) {
+    const dt = d || new Date();
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+  }
 
   function verificarHora() {
     const agora = new Date();
-    // Data LOCAL (não UTC)
-    const dataISO = `${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}-${String(agora.getDate()).padStart(2,'0')}`;
+    const dataHoje = dataISOLocal(agora);
     const horaAtual = agora.getHours();
 
-    // gerarResumoDia já tem guard interno contra duplicatas
-    if (horaAtual >= HORA_FECHAMENTO) {
+    // Só gera se: passou das 19h E ainda não gerou hoje nesta sessão E não existe card do dia
+    if (horaAtual >= HORA_FECHAMENTO
+        && _snapshotGeradoData !== dataHoje
+        && !HISTORICO_DIA.find(h => h.data_iso === dataHoje)) {
       gerarResumoDia();
+      _snapshotGeradoData = dataHoje;
     }
   }
 
   // Verifica a cada 60 segundos
   setInterval(verificarHora, 60000);
-  // Verifica também ao inicializar (caso reabra o app depois das 19h)
+  // Verifica também ao inicializar (caso reabra o app depois das 19h no mesmo dia)
   verificarHora();
+}
+
+// ── Detecta concluídos "órfãos" de ontem (app fechado antes das 19h) e gera card retroativo
+async function verificarOrfaosOntem() {
+  // Aguarda o storage carregar completamente
+  await new Promise(r => setTimeout(r, 4000));
+
+  const concluidos = FILA.filter(c => c.status === 'concluido');
+  if (concluidos.length === 0) return;
+
+  // Descobre a data dos concluídos: usa saida_ts ou hora_saida
+  function dataISOLocal(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  const hoje = dataISOLocal(new Date());
+
+  // Tenta extrair a data de saída do primeiro concluído com timestamp
+  let dataConcluidos = null;
+  const comTS = concluidos.find(c => c.saida_ts);
+  if (comTS) {
+    dataConcluidos = dataISOLocal(new Date(comTS.saida_ts));
+  } else {
+    // Tenta pela string hora_saida "DD/MM ..." ou "DD/MM/YYYY ..."
+    const comStr = concluidos.find(c => c.hora_saida);
+    if (comStr) {
+      const m = comStr.hora_saida.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+      if (m) {
+        const dia = parseInt(m[1]), mes = parseInt(m[2]);
+        const ano = m[3] ? (m[3].length === 2 ? 2000 + parseInt(m[3]) : parseInt(m[3])) : new Date().getFullYear();
+        dataConcluidos = `${ano}-${String(mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+      }
+    }
+  }
+
+  if (!dataConcluidos) return; // não conseguiu determinar a data
+  if (dataConcluidos === hoje) return; // são de hoje, timer normal cuida
+  if (HISTORICO_DIA.find(h => h.data_iso === dataConcluidos)) return; // card já existe
+
+  // Há concluídos de ontem (ou dias anteriores) sem card — gera retroativamente
+  console.log(`[Histórico] Detectados ${concluidos.length} concluído(s) órfão(s) de ${dataConcluidos}. Gerando card retroativo...`);
+  gerarResumoDia(dataConcluidos);
+  showToast(`📸 Card de ${dataConcluidos.split('-').reverse().slice(0,2).join('/')} gerado retroativamente!`, 'success');
 }
 
 init();
 iniciarTimerSnapshot();
+verificarOrfaosOntem();
 
 // Limpeza única de duplicatas no histórico — roda uma vez ao abrir
 async function limparDuplicatasHistorico() {
