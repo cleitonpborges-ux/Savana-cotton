@@ -331,15 +331,35 @@ body::before {
 }
 
 /* ─── NAV ─── */
+.nav-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
 .nav {
   display: flex;
   gap: 4px;
-  margin-bottom: 24px;
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: var(--r);
   padding: 5px;
   width: fit-content;
+  flex-shrink: 0;
+}
+.nav-alert {
+  display: none;
+  background: rgba(245,166,35,.08);
+  border: 1px solid rgba(245,166,35,.2);
+  border-left: 3px solid var(--amber);
+  border-radius: var(--r2);
+  padding: 7px 14px;
+  font-size: 12px;
+  color: var(--amber);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .nb {
   padding: 8px 20px;
@@ -692,8 +712,10 @@ body::before {
 @media (max-width: 700px) {
   .app { padding: 16px; }
   .header-title { font-size: 20px; }
+  .nav-row { gap: 8px; }
   .nav { flex-wrap: wrap; }
   .nb { padding: 7px 12px; font-size: 11px; }
+  .nav-alert { white-space: normal; }
   .wgr { gap: 6px; }
 }
 
@@ -1278,12 +1300,15 @@ body::before {
   <div id="progresso-contrato"></div>
 
   <!-- NAV -->
-  <div class="nav">
-    <button class="nb active" onclick="S('dash')">Visão Geral</button>
-    <button class="nb" onclick="S('diario')">Carregamento Diário</button>
-    <button class="nb" onclick="S('mapa')">Mapa de Lotes</button>
-    <button class="nb" onclick="S('fila')">🚦 Fila Virtual</button>
-    <button class="nb" onclick="S('graf')">Gráficos</button>
+  <div class="nav-row">
+    <div class="nav">
+      <button class="nb active" onclick="S('dash')">Visão Geral</button>
+      <button class="nb" onclick="S('diario')">Carregamento Diário</button>
+      <button class="nb" onclick="S('mapa')">Mapa de Lotes</button>
+      <button class="nb" onclick="S('fila')">🚦 Fila Virtual</button>
+      <button class="nb" onclick="S('graf')">Gráficos</button>
+    </div>
+    <div id="nav-pend-alert" class="nav-alert"></div>
   </div>
 
   <!-- DASHBOARD -->
@@ -1294,19 +1319,6 @@ body::before {
       <div id="progresso-ie-header" style="flex:1;display:flex;align-items:center;gap:8px;min-width:0;"></div>
     </div>
     <div class="card" id="ie-progs"></div>
-    <p class="stitle">Contrato</p>
-    <div class="contrato-card">
-      <div class="contrato-head">
-        <div>
-          <div class="contrato-name">VITERRA · VTSA01731/25</div>
-          <div class="contrato-meta">Entrega Abr–Jun/2026 · 30.813 fardos comprometidos</div>
-        </div>
-        <span class="badge prog" id="contrato-badge">EMBARCANDO</span>
-      </div>
-      <div class="pb"><div class="pf" id="contrato-bar" style="background: linear-gradient(90deg, var(--blue), var(--blue2));"></div></div>
-      <div style="display:flex;justify-content:space-between;margin-top:8px;font-family:var(--font-mono);font-size:11px;color:var(--text3);" id="contrato-leg"></div>
-    </div>
-    <div class="alert-box" id="pend-alert"></div>
   </div>
 
   <!-- DIÁRIO -->
@@ -2221,9 +2233,9 @@ function parseIesFromRaw(rows2d, workbookRaw) {
     const colLote = hdr.findIndex(v => v === 'LOTE' || v === 'LOTES');
     const colFds  = hdr.findIndex(v => v === 'FARDOS' || v === 'FDS' || v === 'TOTAL');
     if (colIE < 0 || colLote < 0) return null;
-    // Verifica se primeira célula da linha 2 é um BRZ (confirma formato flat)
+    // Verifica se primeira célula da linha 2 tem algum conteúdo na coluna IE (confirma formato flat)
     const secondRow = rows2d[1] || [];
-    if (!/^BRZ\d+\/\d+$/i.test((secondRow[colIE] || '').toString().trim())) return null;
+    if (!(secondRow[colIE] || '').toString().trim()) return null;
 
     const ieColors = ['#00E5A0','#3B8EF0','#F5A623','#FF7A5C','#FF6B9D','#A78BFA','#34D399','#FBBF24','#60A5FA','#F87171'];
     let colorIdx = 0;
@@ -2254,7 +2266,7 @@ function parseIesFromRaw(rows2d, workbookRaw) {
     for (let r = 1; r < rows2d.length; r++) {
       const dRow = rows2d[r];
       const ieName = (dRow[colIE] || '').toString().trim().toUpperCase();
-      if (!/^BRZ\d+\/\d+$/i.test(ieName)) continue;
+      if (!ieName) continue;
       const loteNum = parseInt((dRow[colLote] || '').toString().replace(/\D/g, ''));
       if (!loteNum) continue;
 
@@ -2315,11 +2327,11 @@ function parseIesFromRaw(rows2d, workbookRaw) {
     // Aceita BRZ tanto na coluna 0 quanto na coluna 1
     const cell0 = (row[0] || '').toString().trim().toUpperCase();
     const cell1 = (row[1] || '').toString().trim().toUpperCase();
-    const cell1Eff = /^BRZ\d+\/\d+$/.test(cell0) ? cell0 : cell1;
+    const cell1Eff = cell0 ? cell0 : cell1;
     // Substitui row[1] na lógica abaixo para suportar ambos os layouts
     Object.defineProperty(row, '__brzCell', { value: cell1Eff, configurable: true, writable: true });
 
-    if (/^BRZ\d+\/\d+$/.test(cell1Eff)) {
+    if (cell1Eff) {
       const ieName = cell1Eff;
       const hasConcluidoTitle = row.some(v => /conclu/i.test(v.toString()));
 
@@ -2373,12 +2385,12 @@ function parseIesFromRaw(rows2d, workbookRaw) {
           const dRow = rows2d[j];
           const firstCell = (dRow[1] || '').toString().trim().toUpperCase();
 
-          // Fim do bloco: "Total Geral" ou início de próximo bloco BRZ sem lote
+          // Fim do bloco: "Total Geral" ou início de próximo bloco IE sem lote
           if (/total/i.test(firstCell)) { i = j; break; }
-          if (/^BRZ\d+\/\d+$/.test(firstCell) && !(dRow[colLote] || '').toString().trim()) { i = j - 1; break; }
+          if (firstCell && !(dRow[colLote] || '').toString().trim()) { i = j - 1; break; }
 
           const ieCell = (dRow[colIE] || '').toString().trim().toUpperCase();
-          if (!/^BRZ\d+\/\d+$/.test(ieCell)) continue;
+          if (!ieCell) continue;
 
           const loteNum = parseInt((dRow[colLote] || '').toString().replace(/\D/g, ''));
           if (!loteNum) continue;
@@ -2416,7 +2428,7 @@ function parseIesFromRaw(rows2d, workbookRaw) {
   }
 
   Object.values(ieMap).forEach(ie => delete ie._concludedByTitle);
-  if (!Object.keys(ieMap).length) return { ies: [], errors: ['Nenhuma IE (BRZxxx/xx) encontrada na planilha'] };
+  if (!Object.keys(ieMap).length) return { ies: [], errors: ['Nenhuma Instrução de Embarque encontrada na planilha'] };
   return { ies: Object.values(ieMap), errors: [] };
 }
 
@@ -2468,7 +2480,7 @@ function parseIesSheet(rows) {
   const ieMap = {};
   rows.forEach(row => {
     const ieName = (row[colIE] || '').toString().trim().toUpperCase();
-    if (!/^BRZ/.test(ieName)) return;
+    if (!ieName) return;
     const loteNum = parseInt((row[colLote] || '').toString().replace(/\D/g, ''));
     if (!loteNum) return;
     if (!ieMap[ieName]) {
@@ -2601,9 +2613,6 @@ function renderDash() {
 
   // CORRIGIDO: usar totalFardos em vez de 30813 hardcoded
   const pctC = totalFardos ? Math.round(doneFardos / totalFardos * 100) : 0;
-  document.getElementById('contrato-bar').style.width = pctC + '%';
-  document.getElementById('contrato-leg').innerHTML = 
-    `<span>${doneFardos.toLocaleString('pt-BR')} fardos carregados</span><span>${totalFardos.toLocaleString('pt-BR')} total contrato · ${pctC}%</span>`;
   
   // Progresso geral dos 30.813 fardos comprometidos
   const TOTAL_CONTRATO = 30813;
@@ -2669,11 +2678,6 @@ function renderDash() {
     }
   }
   
-  const badge = document.getElementById('contrato-badge');
-  if (pctC === 100) badge.innerHTML = '✅ CONCLUÍDO';
-  else if (pctC > 50) badge.innerHTML = '📦 EMBARCADO PARCIAL';
-  else badge.innerHTML = '🚛 EMBARCANDO';
-
   // Nenhum lookup global necessário: cada IE já tem ie._loteFardos com os fardos corretos (por IE)
 
   // Calcula peso líquido (kg) por IE: distribui liq de cada carga pelos lotes,
@@ -2740,7 +2744,7 @@ function renderDash() {
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
           ${badge}
-          <span style="font-family:var(--font-mono);font-size:11px;color:var(--text2);">${ie.done_fardos.toLocaleString('pt-BR')} fds</span>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--text2);">${ie.done_fardos.toLocaleString('pt-BR')} / ${ie.total_fardos.toLocaleString('pt-BR')} fds</span>
           <span style="font-family:var(--font-mono);font-size:11px;color:var(--text2);">${p}%</span>
         </div>
       </div>
@@ -2751,12 +2755,12 @@ function renderDash() {
   }).join('');
 
   const pendIEs = IES.filter(ie => ie.lotes_pend.length > 0);
-  const alert = document.getElementById('pend-alert');
+  const navAlert = document.getElementById('nav-pend-alert');
   if (pendIEs.length) {
-    alert.style.display = 'block';
-    alert.innerHTML = '<strong>⚠ Pendente:</strong> ' + pendIEs.map(ie => `${ie.name} → lotes ${ie.lotes_pend.join(', ')}`).join(' &nbsp;|&nbsp; ');
+    navAlert.style.display = 'block';
+    navAlert.innerHTML = '<strong>⚠ Pendente:</strong> ' + pendIEs.map(ie => `${ie.name} → lotes ${ie.lotes_pend.join(', ')}`).join(' &nbsp;|&nbsp; ');
   } else {
-    alert.style.display = 'none';
+    navAlert.style.display = 'none';
   }
 }
 
@@ -3420,24 +3424,27 @@ function parseFila(rows2d) {
       const header   = colonIdx >= 0 ? rest.slice(0, colonIdx) : rest;
       const lotePart = colonIdx >= 0 ? rest.slice(colonIdx + 1).trim() : '';
 
-      // Cabeçalho: TRANSP_PLACA_IE-FARDOSfds
+      // Cabeçalho: TRANSP_PLACA_IE-FARDOSfds (separador _ )
       const parts = header.split('_');
       const transportadora = (parts[0] || '').trim();
       const placa          = (parts[1] || '').trim().toUpperCase();
-      const ieRaw          = (parts[2] || '').trim();
+      const ieRaw          = parts.slice(2).join('_').trim();   // tudo após a placa
 
-      // Separa IE dos fardos: "BRZ536/25-150fds" → ie="BRZ536/25", fardos=150
-      const ieFardosMatch = ieRaw.match(/^(.+?)-(\d+)fds?$/i);
+      // Separa IE dos fardos: aceita hífens com ou sem espaço e "fds" com ou sem espaço
+      // Ex: "BRZ-REC19 - 110 fds"  →  ie="BRZ-REC19", fardos=110
+      // Ex: "BRZ536/25-150fds"     →  ie="BRZ536/25",  fardos=150
+      const ieFardosMatch = ieRaw.match(/^(.+?)\s*[-–]\s*(\d+)\s*fds?$/i);
       const ie     = ieFardosMatch ? ieFardosMatch[1].trim().toUpperCase() : ieRaw.toUpperCase();
-      const fardos = ieFardosMatch ? parseInt(ieFardosMatch[2]) : 0;
+      let fardos   = ieFardosMatch ? parseInt(ieFardosMatch[2]) : 0;
 
-      // Lotes: "LT 294_110f / LT 282_30f"
+      // Lotes: aceita "LT 12_110f / LT 15_110f" ou "12_110f, 15_110f" (LT opcional, sep / ou ,)
       const lotes = [];
       const lotes_fardos = {};
       if (lotePart) {
-        const tokens = lotePart.split('/').map(s => s.trim()).filter(Boolean);
+        const tokens = lotePart.split(/[\/,]/).map(s => s.trim()).filter(Boolean);
         for (const tk of tokens) {
-          const m = tk.match(/LT\s*(\d+)(?:_(\d+)f)?/i);
+          // Aceita: "LT 12_110f", "LT12_110f", "12_110f", "LT 12", "12"
+          const m = tk.match(/(?:LT\s*)?(\d+)(?:[_\s]+(\d+)f)?/i);
           if (m) {
             const lNum = parseInt(m[1]);
             if (lNum > 0) {
@@ -3445,6 +3452,10 @@ function parseFila(rows2d) {
               if (m[2]) lotes_fardos[lNum] = parseInt(m[2]);
             }
           }
+        }
+        // Se fardos não vieram no cabeçalho, soma os fardos individuais dos lotes
+        if (!fardos && Object.keys(lotes_fardos).length > 0) {
+          fardos = Object.values(lotes_fardos).reduce((s, v) => s + v, 0);
         }
       }
 
@@ -4032,16 +4043,16 @@ function exportFilaWhatsApp() {
     pendentes.forEach((c, idx) => {
       const eta = calcETA(idx);
       txt += `*${c.pos}° ${c.placa}*\n`;
-      if (c.transportadora && c.transportadora !== '—') txt += `  🏢 ${c.transportadora}\n`;
-      if (c.ie) txt += `  📄 IE: ${c.ie}\n`;
-      if (c.fardos_total) txt += `  📦 ${c.fardos_total} fardos\n`;
+      if (c.transportadora && c.transportadora !== '—') txt += `  ${c.transportadora}\n`;
+      if (c.ie) txt += `  IE: ${c.ie}\n`;
+      if (c.fardos_total) txt += `  ${c.fardos_total} fardos\n`;
       if (eta) txt += `  ⏰ Início previsto: ${eta}\n`;
       if (c.lotes && c.lotes.length) {
         const lotesFormatados = c.lotes.map(l => {
           const fds = (c.lotes_fardos && c.lotes_fardos[l] != null) ? c.lotes_fardos[l] : null;
           return fds != null ? `${l}_${fds}F` : l;
         });
-        txt += `  🔢 Lotes (${c.lotes.length}): ${lotesFormatados.join(', ')}\n`;
+        txt += `  Lotes (${c.lotes.length}): ${lotesFormatados.join(', ')}\n`;
       }
       txt += '\n';
     });
@@ -4061,8 +4072,8 @@ function exportFilaWhatsApp() {
       txt += `  ✓ *${c.placa}*${c.ie ? ' · ' + c.ie : ''}`;
       if (c.transportadora && c.transportadora !== '—') txt += ` · ${c.transportadora}`;
       txt += '\n';
-      if (lotesDetalhados) txt += `    📦 ${lotesDetalhados}${totalFds}\n`;
-      if (c.hora_saida) txt += `    ✅ CONCLUÍDO EM: ${c.hora_saida} h\n`;
+      if (lotesDetalhados) txt += `    ${lotesDetalhados}${totalFds}\n`;
+      if (c.hora_saida) txt += `    CONCLUÍDO EM: ${c.hora_saida} h\n`;
       txt += '\n';
     });
   }
@@ -4428,8 +4439,8 @@ function exportSnapshotWhatsApp() {
       txt += `  ✓ *${c.placa}*${c.ie ? ' · ' + c.ie : ''}`;
       if (c.transportadora && c.transportadora !== '—') txt += ` · ${c.transportadora}`;
       txt += '\n';
-      if (lotesStr) txt += `    📦 ${lotesStr}${totalFds ? ' — TOTAL: ' + totalFds + ' FARDOS' : ''}\n`;
-      if (c.hora_saida) txt += `    ✅ CONCLUÍDO EM: ${c.hora_saida} h\n`;
+      if (lotesStr) txt += `    ${lotesStr}${totalFds ? ' — TOTAL: ' + totalFds + ' FARDOS' : ''}\n`;
+      if (c.hora_saida) txt += `    CONCLUÍDO EM: ${c.hora_saida} h\n`;
       txt += '\n';
     });
   }
