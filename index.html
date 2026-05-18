@@ -1517,7 +1517,7 @@ const DEFAULT_IES = [
    lotes_done:[50,320], lotes_pend:[],
    lotes_fardos:{50:110,320:110}},
   {name:'BRZ536/25', color:'#FBBF24', total_fardos:1433, done_fardos:1103, total_lotes:14, done_lotes:11,
-   lotes_done:[22,26,34,261,277,280,281,282,285,288,292,294], lotes_pend:[282,336,344],
+   lotes_done:[22,26,34,261,277,280,281,282,285,288,292,294,336], lotes_pend:[344],
    lotes_fardos:{22:110,26:110,34:110,261:3,277:110,280:110,281:90,282:75,285:110,288:110,292:110,294:110,336:110,344:110}},
 ];
 
@@ -1873,6 +1873,10 @@ function crossReferenceIEsWithCargas() {
       }
     });
     ie.lotes_pend = aindaPend;
+
+    // Garante consistência: remove de lotes_pend qualquer lote que já esteja em lotes_done
+    const doneSet = new Set(ie.lotes_done);
+    ie.lotes_pend = ie.lotes_pend.filter(l => !doneSet.has(l));
 
     // Recalcula done_fardos usando lotes_fardos da instrução como fonte da verdade.
     // lotes_fardos[lote] = fardos que a INSTRUÇÃO autorizou para esse lote nesta IE.
@@ -4043,16 +4047,16 @@ function exportFilaWhatsApp() {
     pendentes.forEach((c, idx) => {
       const eta = calcETA(idx);
       txt += `*${c.pos}° ${c.placa}*\n`;
-      if (c.transportadora && c.transportadora !== '—') txt += `  ${c.transportadora}\n`;
-      if (c.ie) txt += `  IE: ${c.ie}\n`;
-      if (c.fardos_total) txt += `  ${c.fardos_total} fardos\n`;
+      if (c.transportadora && c.transportadora !== '—') txt += `  🏢 ${c.transportadora}\n`;
+      if (c.ie) txt += `  📄 IE: ${c.ie}\n`;
+      if (c.fardos_total) txt += `  📦 ${c.fardos_total} fardos\n`;
       if (eta) txt += `  ⏰ Início previsto: ${eta}\n`;
       if (c.lotes && c.lotes.length) {
         const lotesFormatados = c.lotes.map(l => {
           const fds = (c.lotes_fardos && c.lotes_fardos[l] != null) ? c.lotes_fardos[l] : null;
           return fds != null ? `${l}_${fds}F` : l;
         });
-        txt += `  Lotes (${c.lotes.length}): ${lotesFormatados.join(', ')}\n`;
+        txt += `  🔢 Lotes (${c.lotes.length}): ${lotesFormatados.join(', ')}\n`;
       }
       txt += '\n';
     });
@@ -4072,8 +4076,8 @@ function exportFilaWhatsApp() {
       txt += `  ✓ *${c.placa}*${c.ie ? ' · ' + c.ie : ''}`;
       if (c.transportadora && c.transportadora !== '—') txt += ` · ${c.transportadora}`;
       txt += '\n';
-      if (lotesDetalhados) txt += `    ${lotesDetalhados}${totalFds}\n`;
-      if (c.hora_saida) txt += `    CONCLUÍDO EM: ${c.hora_saida} h\n`;
+      if (lotesDetalhados) txt += `    📦 ${lotesDetalhados}${totalFds}\n`;
+      if (c.hora_saida) txt += `    ✅ CONCLUÍDO EM: ${c.hora_saida} h\n`;
       txt += '\n';
     });
   }
@@ -4439,8 +4443,8 @@ function exportSnapshotWhatsApp() {
       txt += `  ✓ *${c.placa}*${c.ie ? ' · ' + c.ie : ''}`;
       if (c.transportadora && c.transportadora !== '—') txt += ` · ${c.transportadora}`;
       txt += '\n';
-      if (lotesStr) txt += `    ${lotesStr}${totalFds ? ' — TOTAL: ' + totalFds + ' FARDOS' : ''}\n`;
-      if (c.hora_saida) txt += `    CONCLUÍDO EM: ${c.hora_saida} h\n`;
+      if (lotesStr) txt += `    📦 ${lotesStr}${totalFds ? ' — TOTAL: ' + totalFds + ' FARDOS' : ''}\n`;
+      if (c.hora_saida) txt += `    ✅ CONCLUÍDO EM: ${c.hora_saida} h\n`;
       txt += '\n';
     });
   }
