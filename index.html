@@ -1623,36 +1623,42 @@ function setLoading(show, text = 'Processando dados...') {
   else el.classList.remove('active');
 }
 
-// ========== CLOUD SYNC (JSONBin.io) ==========
-// 🔑 Credenciais lidas de meta-tags (não ficam no código-fonte público)
-// Adicione no <head>: <meta name="jb-bin" content="SEU_BIN_ID">
-//                     <meta name="jb-key" content="SUA_API_KEY">
-//                     <meta name="app-pw" content="SUA_SENHA_ADMIN">
-function _readMeta(name) {
-  const el = document.querySelector(`meta[name="${name}"]`);
-  return el ? el.getAttribute('content') : '';
-}
-const JSONBIN_BIN_ID  = _readMeta('jb-bin')  || '69ec029aaaba882197351b5c';
-const JSONBIN_API_KEY = _readMeta('jb-key')  || '$2a$10$tc8uXrfOi05DCg98VYUw2umaBnm/7v7BHnJD22VsrAsdOiFlHrsKO';
-const ADMIN_PASSWORD  = _readMeta('app-pw')  || 'viterra2026';
+// ========== CLOUD SYNC (GitHub Gist) ==========
+const GIST_ID    = '93c6780309b8e63370777915feb4729d';
+const GIST_FILE  = 'viterra_data.json';
+const ADMIN_PASSWORD = 'viterra2026';
 
-const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
+// Token NAO fica no codigo — inserido pelo admin no login, guardado so na memoria
+let GIST_TOKEN = '';
 
-// Save to JSONBin (admin only)
+const GIST_API_URL = `https://api.github.com/gists/${GIST_ID}`;
+// URL publica para leitura sem token
+const GIST_RAW_URL = `https://gist.githubusercontent.com/cleitonpborges-ux/${GIST_ID}/raw/${GIST_FILE}`;
+
+// Save to GitHub Gist (admin only — requer GIST_TOKEN na memoria)
 async function saveToStorage() {
+  if (!GIST_TOKEN) {
+    showToast('Token GitHub nao configurado. Faca login como admin primeiro.', 'error');
+    return;
+  }
   const mapaToSave = (!Array.isArray(MAPA) && Object.keys(MAPA).length > 0) ? MAPA : DEFAULT_MAPA;
   const payload = { IES, MAPA: mapaToSave, CARGAS, FILA, LOTE_TIPO, HISTORICO_DIA, updatedAt: new Date().toISOString() };
   try {
-    const res = await fetch(JSONBIN_URL, {
-      method: 'PUT',
+    const res = await fetch(GIST_API_URL, {
+      method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'X-Master-Key': JSONBIN_API_KEY
+        'Authorization': `token ${GIST_TOKEN}`,
+        'Accept': 'application/vnd.github+json'
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        files: {
+          [GIST_FILE]: { content: JSON.stringify(payload) }
+        }
+      })
     });
     if (!res.ok) throw new Error('Falha ao salvar na nuvem');
-    // Cache local também
+    // Cache local tambem
     localStorage.setItem('viterra_cache', JSON.stringify(payload));
     localStorage.setItem('viterra_cache_ts', Date.now());
     document.getElementById('statusDot').innerHTML = `☁️ ${new Date().toLocaleDateString('pt-BR')}`;
@@ -1663,28 +1669,13 @@ async function saveToStorage() {
   }
 }
 
-// Load from JSONBin (all users)
+// Load from GitHub Gist (todos os usuarios — sem token, URL publica)
 async function loadFromStorage(silent = false) {
-  // Se não tem BIN configurado, usa localStorage
-  if (false) { // BIN configurado
-    const cache = localStorage.getItem('viterra_cache');
-    if (cache) {
-      const d = JSON.parse(cache);
-      IES = d.IES; MAPA = d.MAPA; CARGAS = d.CARGAS;
-      document.getElementById('statusDot').innerHTML = `📦 LOCAL`;
-      if (!silent) showToast('⚠️ Configure o JSONBin para compartilhar dados', 'info');
-      return true;
-    }
-    return false;
-  }
-
   try {
-    const res = await fetch(JSONBIN_URL + '/latest', {
-      headers: { 'X-Master-Key': JSONBIN_API_KEY }
-    });
-    if (!res.ok) throw new Error('Bin não encontrado');
-    const json = await res.json();
-    const d = json.record;
+    // Adiciona timestamp para evitar cache do browser
+    const res = await fetch(GIST_RAW_URL + '?t=' + Date.now());
+    if (!res.ok) throw new Error('Gist nao encontrado');
+    const d = await res.json();
     if (d && d.IES && d.CARGAS) {
       IES = d.IES;
       CARGAS = d.CARGAS;
@@ -3027,6 +3018,11 @@ function openSettings() {
     showToast('Senha incorreta. Acesso negado.', 'error');
     return;
   }
+  // Pede token apenas se ainda nao foi informado nesta sessao
+  if (!GIST_TOKEN) {
+    const token = prompt('🔑 Token GitHub (para salvar na nuvem):\n\nDeixe em branco para apenas visualizar.');
+    if (token && token.trim()) GIST_TOKEN = token.trim();
+  }
   document.getElementById('settingsOverlay').classList.add('open');
 }
 function closeSettings() {
@@ -4306,6 +4302,11 @@ function deletarCardHistorico(dataIso) {
   if (pwd !== ADMIN_PASSWORD) {
     showToast('Senha incorreta', 'error');
     return;
+  }
+  if (!GIST_TOKEN) {
+    const token = prompt('🔑 Token GitHub (para salvar na nuvem):\n\nDeixe em branco para cancelar.');
+    if (!token || !token.trim()) return;
+    GIST_TOKEN = token.trim();
   }
   const card = HISTORICO_DIA.find(h => h.data_iso === dataIso);
   if (!card) return;
