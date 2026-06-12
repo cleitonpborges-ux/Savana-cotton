@@ -219,6 +219,32 @@ body::before {
   animation: pulse 2s infinite;
 }
 @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+@keyframes pendente-pulse { 0%,100% { box-shadow:0 0 0 0 rgba(255,59,48,.6); } 50% { box-shadow:0 0 0 4px rgba(255,149,0,.5); } }
+.lb-pendente { color:#fff !important; font-weight:700 !important; }
+@keyframes lote-pulse {
+  0%   { box-shadow: 0 0 0 2px rgba(255,255,255,.9), 0 0 10px rgba(255,255,255,.5); outline-color: rgba(255,255,255,.9); transform: scale(1); }
+  50%  { box-shadow: 0 0 0 5px rgba(255,255,255,.15), 0 0 22px rgba(255,255,255,.35); outline-color: rgba(255,255,255,.4); transform: scale(1.12); }
+  100% { box-shadow: 0 0 0 2px rgba(255,255,255,.9), 0 0 10px rgba(255,255,255,.5); outline-color: rgba(255,255,255,.9); transform: scale(1); }
+}
+@keyframes lote-pulse-ie {
+  0%   { transform: scale(1);    opacity: 1; }
+  50%  { transform: scale(1.13); opacity: .85; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+.lb-highlight-pulse {
+  animation: lote-pulse 1.1s ease-in-out infinite !important;
+  position: relative !important;
+  z-index: 10 !important;
+  outline-width: 2px !important;
+  outline-style: solid !important;
+}
+.lb-highlight-pulse-ie {
+  animation: lote-pulse-ie 1.1s ease-in-out infinite !important;
+  position: relative !important;
+  z-index: 10 !important;
+  outline-width: 2px !important;
+  outline-style: solid !important;
+}
 
 /* ─── MODAL ─── */
 .modal-overlay {
@@ -1317,6 +1343,10 @@ body::before {
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;font-family:var(--font-mono);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;">
       <span style="white-space:nowrap;">Status por instrução de embarque</span>
       <div id="progresso-ie-header" style="flex:1;display:flex;align-items:center;gap:8px;min-width:0;"></div>
+      <button id="ie-sort-btn" onclick="toggleIESort()"
+        style="flex-shrink:0;padding:4px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text2);font-family:var(--font-mono);font-size:10px;cursor:pointer;white-space:nowrap;letter-spacing:.05em;text-transform:uppercase;">
+        🕐 Mais recentes
+      </button>
     </div>
     <div class="card" id="ie-progs"></div>
   </div>
@@ -1335,18 +1365,25 @@ body::before {
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
       <div style="position:relative;flex:1;max-width:280px;">
         <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none;">🔍</span>
-        <input id="mapa-search" type="number" placeholder="Buscar lote..." oninput="buscaLote(this.value)"
+        <input id="mapa-search" type="text" placeholder="Lote: 223,112 ou nome da IE..." oninput="buscaLote(this.value)"
           style="width:100%;padding:8px 12px 8px 34px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-mono);font-size:13px;outline:none;box-sizing:border-box;"
-          onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'">
+          onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'"
+          autocomplete="off" spellcheck="false">
         <button onclick="limparBuscaLote()" title="Limpar"
           style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;line-height:1;padding:0;">✕</button>
       </div>
       <span id="mapa-search-result" style="font-family:var(--font-mono);font-size:12px;color:var(--text3);"></span>
     </div>
-    <div class="leg" id="mleg"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+      <div class="leg" id="mleg" style="flex:1;min-width:0;margin-bottom:0;"></div>
+      <button id="mapa-sort-btn" onclick="toggleIESort()"
+        style="flex-shrink:0;padding:4px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text2);font-family:var(--font-mono);font-size:10px;cursor:pointer;white-space:nowrap;letter-spacing:.05em;text-transform:uppercase;">
+        🕐 Mais recentes
+      </button>
+    </div>
     <div style="display:flex;gap:18px;margin-bottom:14px;flex-wrap:wrap;">
-      <div class="li"><div class="ld" style="background:var(--green);"></div><span>Cor intensa = concluído</span></div>
-      <div class="li"><div class="ld" style="background:var(--bg4);border:1px solid var(--border2);opacity:.5;"></div><span>Cor suave = pendente</span></div>
+      <div class="li"><div class="ld" style="background:var(--green);opacity:1;"></div><span>Cor viva = pendente</span></div>
+      <div class="li"><div class="ld" style="background:var(--green);opacity:.25;filter:grayscale(60%);border:1px solid var(--border2);"></div><span>Cor apagada = concluído</span></div>
       <div class="li"><div class="ld" style="background:var(--bg3);border:1px solid var(--border);"></div><span>Sem IE atribuída</span></div>
     </div>
     <div class="card" style="padding:16px 20px; overflow-y: auto;"><div id="mapcont" style="min-height:100px;"></div></div>
@@ -1631,8 +1668,44 @@ const ADMIN_PASSWORD = 'viterra2026';
 // Token NAO fica no codigo — inserido pelo admin no login, guardado so na memoria
 let GIST_TOKEN = '';
 
-const GIST_API_URL = `https://api.github.com/gists/${GIST_ID}`;
+// Timestamp dos dados atualmente carregados em memória (evita sobrescrever com dados mais antigos)
+let LOADED_DATA_TS = null;
+
+// ── Paleta de cores para IEs (20 cores distintas e bem visíveis no tema escuro)
+const IE_COLOR_PALETTE = [
+  '#00E5A0','#3B8EF0','#F5A623','#FF7A5C','#FF6B9D',
+  '#A78BFA','#34D399','#FBBF24','#60A5FA','#F87171',
+  '#38BDF8','#FB923C','#4ADE80','#E879F9','#FACC15',
+  '#67E8F9','#FCA5A5','#86EFAC','#C084FC','#FCD34D'
+];
+
+// Retorna a próxima cor da paleta que ainda não está sendo usada por nenhuma IE em aberto
+function assignIEColor(existingIEs) {
+  const usedColors = new Set((existingIEs || []).map(ie => (ie.color || '').toUpperCase()));
+  for (const c of IE_COLOR_PALETTE) {
+    if (!usedColors.has(c.toUpperCase())) return c;
+  }
+  // Se todas as 20 cores estiverem em uso, gera cor HSL determinística pelo nome
+  return null; // sinaliza para usar fallback por índice
+}
+
+// Ordem de exibição das IEs: 'recent' = mais recentes primeiro, 'oldest' = mais antigas primeiro
+let IE_SORT_ORDER = localStorage.getItem('viterra_ie_sort') || 'recent';
+
+// Retorna IES ordenadas conforme IE_SORT_ORDER
+// "mais recente" = maior número na sigla (BRZ536 > BRZ521 > BRZ505)
+function getIEsSorted() {
+  const extractNum = name => {
+    const m = name.match(/(\d+)/);
+    return m ? parseInt(m[1]) : 0;
+  };
+  return [...IES].sort((a, b) => {
+    const na = extractNum(a.name), nb = extractNum(b.name);
+    return IE_SORT_ORDER === 'recent' ? nb - na : na - nb;
+  });
+}
 // URL publica para leitura sem token
+const GIST_API_URL = `https://api.github.com/gists/${GIST_ID}`;
 const GIST_RAW_URL = `https://gist.githubusercontent.com/cleitonpborges-ux/${GIST_ID}/raw/${GIST_FILE}`;
 
 // Save to GitHub Gist (admin only — requer GIST_TOKEN na memoria)
@@ -1642,7 +1715,11 @@ async function saveToStorage() {
     return;
   }
   const mapaToSave = (!Array.isArray(MAPA) && Object.keys(MAPA).length > 0) ? MAPA : DEFAULT_MAPA;
-  const payload = { IES, MAPA: mapaToSave, CARGAS, FILA, LOTE_TIPO, HISTORICO_DIA, updatedAt: new Date().toISOString() };
+  const nowISO = new Date().toISOString();
+  // Marca o timestamp LOCAL imediatamente — protege contra auto-refresh sobrescrever
+  // estes dados enquanto o Gist ainda está propagando pelo CDN do GitHub
+  LOADED_DATA_TS = nowISO;
+  const payload = { IES, MAPA: mapaToSave, CARGAS, FILA, LOTE_TIPO, HISTORICO_DIA, updatedAt: nowISO };
   try {
     const res = await fetch(GIST_API_URL, {
       method: 'PATCH',
@@ -1658,10 +1735,12 @@ async function saveToStorage() {
       })
     });
     if (!res.ok) throw new Error('Falha ao salvar na nuvem');
-    // Cache local tambem
+    // Marca o timestamp dos dados atualmente em memória
+    LOADED_DATA_TS = nowISO;
+    // Cache local também — com timestamp para outros usuários saberem que há dados novos
     localStorage.setItem('viterra_cache', JSON.stringify(payload));
     localStorage.setItem('viterra_cache_ts', Date.now());
-    document.getElementById('statusDot').innerHTML = `☁️ ${new Date().toLocaleDateString('pt-BR')}`;
+    document.getElementById('statusDot').innerHTML = `☁️ ${new Date().toLocaleString('pt-BR')}`;
     showToast('Dados publicados na nuvem para todos!', 'success');
   } catch(e) {
     console.error(e);
@@ -1672,11 +1751,33 @@ async function saveToStorage() {
 // Load from GitHub Gist (todos os usuarios — sem token, URL publica)
 async function loadFromStorage(silent = false) {
   try {
-    // Adiciona timestamp para evitar cache do browser
-    const res = await fetch(GIST_RAW_URL + '?t=' + Date.now());
-    if (!res.ok) throw new Error('Gist nao encontrado');
-    const d = await res.json();
+    // Usa a API do Gist (não a URL raw) para evitar cache CDN agressivo do GitHub
+    // A API retorna sempre a versão mais recente
+    let d = null;
+    try {
+      const apiRes = await fetch(GIST_API_URL, {
+        headers: { 'Accept': 'application/vnd.github+json' }
+      });
+      if (apiRes.ok) {
+        const apiData = await apiRes.json();
+        const fileContent = apiData.files && apiData.files[GIST_FILE] && apiData.files[GIST_FILE].content;
+        if (fileContent) d = JSON.parse(fileContent);
+      }
+    } catch(apiErr) {
+      // Fallback para URL raw se API falhar
+      const res = await fetch(GIST_RAW_URL + '?t=' + Date.now());
+      if (res.ok) d = await res.json();
+    }
+
     if (d && d.IES && d.CARGAS) {
+      // ── PROTEÇÃO ANTI-REGRESSÃO: só aplica se os dados da nuvem forem mais novos
+      //    que os dados atualmente em memória. Isso evita que o auto-refresh
+      //    sobrescreva uma importação recém-feita com a versão antiga do CDN.
+      if (LOADED_DATA_TS && d.updatedAt && d.updatedAt < LOADED_DATA_TS) {
+        if (!silent) showToast('Dados locais já são mais recentes. Nuvem ainda propagando...', 'info');
+        return true; // retorna true (ok) mas não sobrescreve
+      }
+
       IES = d.IES;
       CARGAS = d.CARGAS;
       if (d.FILA && Array.isArray(d.FILA)) FILA = d.FILA;
@@ -1704,7 +1805,8 @@ async function loadFromStorage(silent = false) {
       if (d.LOTE_TIPO && typeof d.LOTE_TIPO === 'object') LOTE_TIPO = d.LOTE_TIPO;
       // Garante cruzamento de referência ao carregar
       if (IES.length && CARGAS.length) { crossReferenceIEsWithCargas(); rebuildLoteIE(); }
-      // Atualiza cache local
+      // Atualiza timestamp em memória e cache local
+      LOADED_DATA_TS = d.updatedAt || null;
       localStorage.setItem('viterra_cache', JSON.stringify(d));
       localStorage.setItem('viterra_cache_ts', Date.now());
       const ts = d.updatedAt ? new Date(d.updatedAt).toLocaleString('pt-BR') : '';
@@ -1717,6 +1819,11 @@ async function loadFromStorage(silent = false) {
     const cache = localStorage.getItem('viterra_cache');
     if (cache) {
       const d = JSON.parse(cache);
+      // Mesmo no fallback: não sobrescreve dados mais recentes em memória
+      if (LOADED_DATA_TS && d.updatedAt && d.updatedAt < LOADED_DATA_TS) {
+        if (!silent) showToast('Sem conexão — mantendo dados atuais', 'info');
+        return true;
+      }
       IES = d.IES;
       CARGAS = d.CARGAS;
       if (d.FILA && Array.isArray(d.FILA)) FILA = d.FILA;
@@ -1737,6 +1844,7 @@ async function loadFromStorage(silent = false) {
       }
       if (d.LOTE_TIPO && typeof d.LOTE_TIPO === 'object') LOTE_TIPO = d.LOTE_TIPO;
       if (IES.length && CARGAS.length) { crossReferenceIEsWithCargas(); rebuildLoteIE(); }
+      LOADED_DATA_TS = d.updatedAt || null;
       document.getElementById('statusDot').innerHTML = `📦 CACHE`;
       if (!silent) showToast('Sem conexão — usando cache local', 'info');
       return true;
@@ -1821,8 +1929,12 @@ let LOTE_IE = {};
 function rebuildLoteIE() {
   LOTE_IE = {};
   IES.forEach(ie => {
-    [...ie.lotes_done, ...ie.lotes_pend].forEach(l => {
-      LOTE_IE[l] = {ie, done: ie.lotes_done.includes(l)};
+    ie.lotes_done.forEach(l => {
+      LOTE_IE[l] = { ie, done: true, parcial: false };
+    });
+    ie.lotes_pend.forEach(l => {
+      const fardosCarregados = ie.lotes_parcial && ie.lotes_parcial[l];
+      LOTE_IE[l] = { ie, done: false, parcial: !!fardosCarregados, fardosCarregados: fardosCarregados || 0 };
     });
   });
 }
@@ -1837,69 +1949,69 @@ function rebuildLoteIE() {
 function crossReferenceIEsWithCargas() {
   if (!CARGAS.length || !IES.length) return;
 
-  // Conjunto global de lotes presentes no contrato (para detectar baixas)
-  const lotesNoContrato = new Set();
+  // ── PASSO 1: montar mapa de fardos realmente carregados por lote
+  //    loteFardosCarregados[loteNum] = total de fardos desse lote em TODAS as cargas
+  //    Suporta lotes fracionados: L100 pode aparecer em várias cargas (10+20+80 = 110)
+  const loteFardosCarregados = {};   // { loteNum: fardosCarregados }
   CARGAS.forEach(carga => {
-    carga.lotes.toString().split(',').map(l => parseInt(l.trim())).filter(l => l > 0)
-      .forEach(l => lotesNoContrato.add(l));
+    const lotesParts = carga.lotes.toString()
+      .split(',').map(l => parseInt(l.trim())).filter(l => l > 0);
+    lotesParts.forEach((loteNum, idx) => {
+      const fds = (carga.fds && carga.fds[idx] != null) ? carga.fds[idx] : 110;
+      loteFardosCarregados[loteNum] = (loteFardosCarregados[loteNum] || 0) + fds;
+    });
   });
 
-  let totalDados = 0;
+  let totalBaixados = 0;
+  let totalParciais = 0;
 
   IES.forEach(ie => {
     if (!ie.lotes_fardos) ie.lotes_fardos = {};
-    const lotesDaIE = new Set([...ie.lotes_done, ...ie.lotes_pend]);
+    if (!ie.lotes_parcial) ie.lotes_parcial = {};
 
-    // Dar baixa em lotes pendentes que aparecem no contrato
-    const aindaPend = [];
-    ie.lotes_pend.forEach(loteNum => {
-      if (lotesNoContrato.has(loteNum)) {
-        if (!ie.lotes_done.includes(loteNum)) {
-          ie.lotes_done.push(loteNum);
-          ie.done_lotes++;
-          totalDados++;
-        }
+    // ── Para cada lote desta IE, decidir: done / parcial / pendente
+    // Todos os lotes da IE (originais da instrução)
+    const todosOsLotes = [...new Set([...ie.lotes_done, ...ie.lotes_pend])];
+
+    ie.lotes_done  = [];
+    ie.lotes_pend  = [];
+    ie.lotes_parcial = ie.lotes_parcial || {}; // { loteNum: fardosCarregadosAteAgora }
+
+    let doneFardos = 0;
+    let doneLotes  = 0;
+
+    todosOsLotes.forEach(loteNum => {
+      const autorizado   = ie.lotes_fardos[loteNum] ?? 110;   // fardos que a instrução autorizou
+      const carregado    = loteFardosCarregados[loteNum] || 0; // fardos realmente no contrato
+
+      if (carregado <= 0) {
+        // Nenhum fardo carregado → pendente
+        ie.lotes_pend.push(loteNum);
+      } else if (carregado >= autorizado) {
+        // Todos (ou mais) os fardos autorizados foram carregados → concluído
+        ie.lotes_done.push(loteNum);
+        doneFardos += autorizado;   // conta o autorizado, não o excedente acidental
+        doneLotes++;
+        if (!(loteNum in (ie.lotes_parcial || {}))) totalBaixados++;
+        delete ie.lotes_parcial[loteNum]; // limpa parcial se havia
       } else {
-        aindaPend.push(loteNum);
+        // Carregamento parcial → lote ainda pendente, mas registra progresso
+        ie.lotes_pend.push(loteNum);
+        ie.lotes_parcial[loteNum] = carregado;
+        doneFardos += carregado;   // conta fardos parciais no progresso
+        totalParciais++;
       }
     });
-    ie.lotes_pend = aindaPend;
 
-    // Garante consistência: remove de lotes_pend qualquer lote que já esteja em lotes_done
-    const doneSet = new Set(ie.lotes_done);
-    ie.lotes_pend = ie.lotes_pend.filter(l => !doneSet.has(l));
-
-    // Recalcula done_fardos usando lotes_fardos da instrução como fonte da verdade.
-    // lotes_fardos[lote] = fardos que a INSTRUÇÃO autorizou para esse lote nesta IE.
-    // Isso resolve o caso de lotes compartilhados entre IEs com quantidades diferentes
-    // (ex: lote 261 → BRZ508=42 fardos, BRZ536=3 fardos).
-    // Fallback: se a instrução não tiver o valor, soma pelas cargas filtradas por IE.
-    let doneFardosRecalc = 0;
-    ie.lotes_done.forEach(loteNum => {
-      if (ie.lotes_fardos[loteNum] != null) {
-        // Usa o valor que a instrução define para este lote nesta IE
-        doneFardosRecalc += ie.lotes_fardos[loteNum];
-      } else {
-        // Fallback: soma fardos deste lote apenas nas cargas onde ele pertence a esta IE
-        let fardosDaCarga = 0;
-        CARGAS.forEach(carga => {
-          const lotesParts = carga.lotes.toString().split(',').map(l => parseInt(l.trim())).filter(l => l > 0);
-          const idx = lotesParts.indexOf(loteNum);
-          if (idx < 0) return;
-          // Só conta se pelo menos um outro lote da carga pertence a esta IE
-          const algumLoteDaIE = lotesParts.some(l => lotesDaIE.has(l));
-          if (!algumLoteDaIE) return;
-          fardosDaCarga += (carga.fds && carga.fds[idx] != null) ? carga.fds[idx] : 110;
-        });
-        doneFardosRecalc += fardosDaCarga || 110;
-      }
-    });
-    ie.done_fardos = doneFardosRecalc;
-    ie.done_lotes = ie.lotes_done.length;
+    ie.done_fardos = doneFardos;
+    ie.done_lotes  = doneLotes;
   });
 
-  if (totalDados > 0) {
-    showToast(`✓ ${totalDados} lote(s) baixado(s) automaticamente via contratos`, 'success');
+  if (totalBaixados > 0 || totalParciais > 0) {
+    const partes = [];
+    if (totalBaixados > 0) partes.push(`${totalBaixados} lote(s) concluído(s)`);
+    if (totalParciais > 0) partes.push(`${totalParciais} lote(s) parcialmente carregado(s)`);
+    showToast(`✓ ${partes.join(' · ')}`, 'success');
   }
 }
 
@@ -2184,8 +2296,6 @@ function _parseCargasFixed(rows2d, dataStart, colN, colDt, colLiq, colLote, colF
 // ── Detecta e parseia planilha de IEs (INSTRUCOES_DE_CARREGAMENTO…)
 // Regra: LOTE em VERMELHO + TACHADO = já carregado (done). Sem formatação = pendente.
 function parseIesFromRaw(rows2d, workbookRaw) {
-  const ieColors = ['#00E5A0','#3B8EF0','#F5A623','#FF7A5C','#FF6B9D','#A78BFA','#34D399','#FBBF24','#60A5FA','#F87171'];
-  let colorIdx = 0;
   const ieMap = {};
 
   // ── Acessa sheet com estilos via workbook SheetJS (leitura de cellStyles)
@@ -2232,8 +2342,6 @@ function parseIesFromRaw(rows2d, workbookRaw) {
     const secondRow = rows2d[1] || [];
     if (!(secondRow[colIE] || '').toString().trim()) return null;
 
-    const ieColors = ['#00E5A0','#3B8EF0','#F5A623','#FF7A5C','#FF6B9D','#A78BFA','#34D399','#FBBF24','#60A5FA','#F87171'];
-    let colorIdx = 0;
     const ieMap = {};
 
     // Acessa sheet com estilos para detectar strike+vermelho (lotes já carregados)
@@ -2267,7 +2375,9 @@ function parseIesFromRaw(rows2d, workbookRaw) {
 
       if (!ieMap[ieName]) {
         // Tenta ler cor de fundo da célula da IE na planilha
-        let ieColor = ieColors[colorIdx++ % ieColors.length];
+        // Se não tiver cor na planilha, usa assignIEColor (paleta global, sem repetição)
+        let ieColor = assignIEColor([...IES, ...Object.values(ieMap)])
+                      || IE_COLOR_PALETTE[Object.keys(ieMap).length % IE_COLOR_PALETTE.length];
         if (sheetWS) {
           const addrIE = colIdxToLetter2(colIE) + (r + 1);
           const cellIE = sheetWS[addrIE];
@@ -2287,7 +2397,7 @@ function parseIesFromRaw(rows2d, workbookRaw) {
           color: ieColor,
           total_fardos: 0, done_fardos: 0,
           total_lotes: 0, done_lotes: 0,
-          lotes_done: [], lotes_pend: [], lotes_fardos: {}
+          lotes_done: [], lotes_pend: [], lotes_fardos: {}, lotes_parcial: {}
         };
       }
       const ie = ieMap[ieName];
@@ -2347,7 +2457,9 @@ function parseIesFromRaw(rows2d, workbookRaw) {
 
         if (!ieMap[ieName]) {
           // Tenta ler cor de fundo da célula do título BRZ nesta linha
-          let ieColor = ieColors[colorIdx++ % ieColors.length];
+          // Se não houver cor na planilha, usa assignIEColor (sem repetição entre IEs abertas)
+          let ieColor = assignIEColor([...IES, ...Object.values(ieMap)])
+                        || IE_COLOR_PALETTE[Object.keys(ieMap).length % IE_COLOR_PALETTE.length];
           if (sheetWithStyles) {
             // Tenta coluna 0 e coluna 1 (onde o BRZ pode estar)
             for (const tryCol of [0, 1]) {
@@ -2370,7 +2482,7 @@ function parseIesFromRaw(rows2d, workbookRaw) {
             color: ieColor,
             total_fardos: 0, done_fardos: 0,
             total_lotes: 0, done_lotes: 0,
-            lotes_done: [], lotes_pend: [], lotes_fardos: {},
+            lotes_done: [], lotes_pend: [], lotes_fardos: {}, lotes_parcial: {},
             _concludedByTitle: hasConcluidoTitle
           };
         }
@@ -2470,8 +2582,6 @@ function parseIesSheet(rows) {
   const colTotal = find(['fardos','fds','qtd','bales','quantidade','total']);
   const colStatus = find(['status','situacao','situação','done','concluido','concluído','carregado']);
   if (!colIE || !colLote) return { ies: [], errors: ['Colunas I.E. e LOTE não encontradas'] };
-  const ieColors = ['#00E5A0','#3B8EF0','#F5A623','#FF7A5C','#FF6B9D','#A78BFA','#34D399','#FBBF24','#60A5FA','#F87171'];
-  let colorIdx = 0;
   const ieMap = {};
   rows.forEach(row => {
     const ieName = (row[colIE] || '').toString().trim().toUpperCase();
@@ -2479,9 +2589,11 @@ function parseIesSheet(rows) {
     const loteNum = parseInt((row[colLote] || '').toString().replace(/\D/g, ''));
     if (!loteNum) return;
     if (!ieMap[ieName]) {
-      ieMap[ieName] = { name: ieName, color: ieColors[colorIdx++ % ieColors.length],
+      const color = assignIEColor([...IES, ...Object.values(ieMap)])
+                    || IE_COLOR_PALETTE[Object.keys(ieMap).length % IE_COLOR_PALETTE.length];
+      ieMap[ieName] = { name: ieName, color,
         total_fardos: 0, done_fardos: 0, total_lotes: 0, done_lotes: 0,
-        lotes_done: [], lotes_pend: [] };
+        lotes_done: [], lotes_pend: [], lotes_fardos: {}, lotes_parcial: {} };
     }
     const ie = ieMap[ieName];
     const fardos = parseInt(row[colTotal]) || 110;
@@ -2570,6 +2682,7 @@ function fmt(dt) {
 
 // ========== RENDER DASH ==========
 function renderDash() {
+  updateSortBtnLabels();
   const totalFardos = IES.reduce((s, ie) => s + ie.total_fardos, 0);
   const doneFardos = IES.reduce((s, ie) => s + ie.done_fardos, 0);
   const doneIEs = IES.filter(ie => ie.lotes_pend.length === 0).length;
@@ -2638,12 +2751,13 @@ function renderDash() {
   }
 
   // Calcula lotes para exibir junto ao progresso
-  let lotesCheioDone = 0, lotesQuebradoDone = 0;
+  let lotesCheioDone = 0, lotesQuebradoDone = 0, lotesParciaisCount = 0;
   IES.forEach(ie => {
     ie.lotes_done.forEach(lote => {
-      const f = ie.lotes_fardos[lote] || 110;
+      const f = ie.lotes_fardos[lote] ?? 110;
       if (f === 110) lotesCheioDone++; else lotesQuebradoDone++;
     });
+    lotesParciaisCount += Object.keys(ie.lotes_parcial || {}).length;
   });
   const totalLotesDone = lotesCheioDone + lotesQuebradoDone;
 
@@ -2669,7 +2783,7 @@ function renderDash() {
     // agora o elemento existe no DOM, preenche os lotes
     const headerLotesInfoEl = document.getElementById('header-lotes-info');
     if (headerLotesInfoEl) {
-      headerLotesInfoEl.innerHTML = `<span style="color:var(--green);font-weight:700;">${lotesCheioDone}</span><span> cheios · </span><span style="color:var(--blue);font-weight:700;">${lotesQuebradoDone}</span><span> quebr. · </span><span style="color:var(--text);font-weight:700;">${totalLotesDone}</span><span> lotes</span>`;
+      headerLotesInfoEl.innerHTML = `<span style="color:var(--green);font-weight:700;">${lotesCheioDone}</span><span> cheios · </span><span style="color:var(--blue);font-weight:700;">${lotesQuebradoDone}</span><span> quebr.${lotesParciaisCount > 0 ? ` · <span style="color:#60A5FA;font-weight:700;">${lotesParciaisCount}⚡</span> parciais` : ''} · </span><span style="color:var(--text);font-weight:700;">${totalLotesDone}</span><span> lotes</span>`;
     }
   }
   
@@ -2698,35 +2812,57 @@ function renderDash() {
     });
   });
 
-  document.getElementById('ie-progs').innerHTML = IES.map(ie => {
-    const p = Math.round(ie.done_fardos / ie.total_fardos * 100);
+  document.getElementById('ie-progs').innerHTML = getIEsSorted().map(ie => {
+    const p = ie.total_fardos > 0 ? Math.min(100, Math.round(ie.done_fardos / ie.total_fardos * 100)) : 0;
+    const numParciais = Object.keys(ie.lotes_parcial || {}).length;
     const concl = ie.lotes_pend.length === 0;
-    const badge = concl
-      ? `<span class="badge ok">CONCLUÍDO</span>`
-      : `<span class="badge pend">${ie.done_lotes}/${ie.total_lotes} lotes</span>`;
+    let badge;
+    if (concl) {
+      badge = `<span class="badge ok">CONCLUÍDO</span>`;
+    } else if (numParciais > 0) {
+      badge = `<span class="badge pend" style="border-color:rgba(96,165,250,.4);color:#60A5FA;">${ie.done_lotes}/${ie.total_lotes} lotes · ${numParciais}⚡</span>`;
+    } else {
+      badge = `<span class="badge pend">${ie.done_lotes}/${ie.total_lotes} lotes</span>`;
+    }
     const kgIE = kgPorIE[ie.name] || 0;
     const kgIEStr = kgIE.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' kg';
 
-    // Lotes carregados com fardos
+    // Lotes carregados com fardos reais
     const lotesCarregadosHTML = ie.lotes_done.length > 0
       ? `<div style="margin-top:8px;">
           <div style="font-family:var(--font-mono);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">✅ Lotes carregados</div>
           <div style="display:flex;flex-wrap:wrap;gap:4px;">
             ${ie.lotes_done.map(l => {
-              const fds = (ie.lotes_fardos && ie.lotes_fardos[l] != null) ? ie.lotes_fardos[l] : 110;
-              return `<span style="font-family:var(--font-mono);font-size:11px;padding:2px 7px;border-radius:4px;background:rgba(0,229,160,.08);color:var(--green);border:1px solid rgba(0,229,160,.15);">L${l}: ${fds} fds</span>`;
+              const aut = (ie.lotes_fardos && ie.lotes_fardos[l] != null) ? ie.lotes_fardos[l] : 110;
+              return `<span style="font-family:var(--font-mono);font-size:11px;padding:2px 7px;border-radius:4px;background:rgba(0,229,160,.08);color:var(--green);border:1px solid rgba(0,229,160,.15);">L${l}: ${aut} fds</span>`;
             }).join('')}
           </div>
         </div>` : '';
 
-    // Lotes pendentes com fardos previstos
-    const lotesPendentesHTML = ie.lotes_pend.length > 0
+    // Lotes parcialmente carregados (em progresso)
+    const lotesParciais = ie.lotes_pend.filter(l => ie.lotes_parcial && ie.lotes_parcial[l] > 0);
+    const lotesParcialHTML = lotesParciais.length > 0
+      ? `<div style="margin-top:7px;">
+          <div style="font-family:var(--font-mono);font-size:11px;color:#60A5FA;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">⚡ Parcialmente carregados</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            ${lotesParciais.map(l => {
+              const aut = (ie.lotes_fardos && ie.lotes_fardos[l] != null) ? ie.lotes_fardos[l] : 110;
+              const car = ie.lotes_parcial[l];
+              const pct = Math.round(car / aut * 100);
+              return `<span style="font-family:var(--font-mono);font-size:11px;padding:2px 7px;border-radius:4px;background:rgba(96,165,250,.08);color:#60A5FA;border:1px dashed rgba(96,165,250,.4);">L${l}: ${car}/${aut} fds <span style="opacity:.7;">(${pct}%)</span></span>`;
+            }).join('')}
+          </div>
+        </div>` : '';
+
+    // Lotes ainda sem nenhum fardo carregado
+    const lotesPurosPend = ie.lotes_pend.filter(l => !(ie.lotes_parcial && ie.lotes_parcial[l] > 0));
+    const lotesPendentesHTML = lotesPurosPend.length > 0
       ? `<div style="margin-top:7px;">
           <div style="font-family:var(--font-mono);font-size:11px;color:var(--amber);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;">⚠ Lotes pendentes</div>
           <div style="display:flex;flex-wrap:wrap;gap:4px;">
-            ${ie.lotes_pend.map(l => {
-              const fds = (ie.lotes_fardos && ie.lotes_fardos[l] != null) ? ie.lotes_fardos[l] : 110;
-              return `<span style="font-family:var(--font-mono);font-size:11px;padding:2px 7px;border-radius:4px;background:rgba(245,166,35,.08);color:var(--amber);border:1px solid rgba(245,166,35,.2);">L${l}: ${fds} fds</span>`;
+            ${lotesPurosPend.map(l => {
+              const aut = (ie.lotes_fardos && ie.lotes_fardos[l] != null) ? ie.lotes_fardos[l] : 110;
+              return `<span style="font-family:var(--font-mono);font-size:11px;padding:2px 7px;border-radius:4px;background:rgba(245,166,35,.08);color:var(--amber);border:1px solid rgba(245,166,35,.2);">L${l}: ${aut} fds</span>`;
             }).join('')}
           </div>
         </div>` : '';
@@ -2745,6 +2881,7 @@ function renderDash() {
       </div>
       <div class="pb"><div class="pf" style="width:${p}%;background:${ie.color};"></div></div>
       ${lotesCarregadosHTML}
+      ${lotesParcialHTML}
       ${lotesPendentesHTML}
     </div>`;
   }).join('');
@@ -2854,6 +2991,7 @@ function renderDay(dt) {
 
 // ========== RENDER MAPA ==========
 function renderMapa() {
+  updateSortBtnLabels();
   console.log('[MAPA] renderMapa called. MAPA keys:', Object.keys(MAPA).length, 'MAPA type:', typeof MAPA, 'isArray:', Array.isArray(MAPA));
   console.log('[MAPA] LOTE_IE keys:', Object.keys(LOTE_IE).length);
   console.log('[MAPA] IES length:', IES.length);
@@ -2865,75 +3003,182 @@ function renderMapa() {
   }
 
   document.getElementById('mleg').innerHTML =
-    IES.map(ie => `<div class="li"><div class="ld" style="background:${ie.color};"></div>${ie.name}</div>`).join('') +
-    '<div class="li"><div class="ld" style="background:var(--bg4);border:1px solid var(--border2);"></div>Sem IE</div>';
+    getIEsSorted().map(ie => `<div class="li"><div class="ld" style="background:${ie.color};"></div>${ie.name}</div>`).join('') +
+    '<div class="li"><div class="ld" style="background:var(--bg4);border:2px dashed var(--border2);"></div>Parcial</div>' +
+    '<div class="li"><div class="ld" style="background:var(--green);opacity:1;border:1px solid var(--border2);"></div>Pendente (cor da IE)</div>' +
+    '<div class="li"><div class="ld" style="background:var(--green);opacity:.25;filter:grayscale(60%);border:1px solid var(--border2);"></div>Concluído</div>' +
+    '<div class="li"><div class="ld" style="background:var(--bg4);opacity:.4;border:1px solid var(--border2);"></div>Sem IE</div>';
 
   document.getElementById('mapcont').innerHTML = Object.entries(MAPA).map(([rua, data]) => {
     const boxes = data.lotes.map(l => {
       const info = LOTE_IE[l];
-      const bg = info ? info.ie.color : 'var(--bg4)';
-      const fg = info ? '#000' : 'var(--text3)';
-      const op = info ? (info.done ? '1' : '0.4') : '0.7';
-      return `<div class="lb" id="lote-cell-${l}" style="background:${bg};color:${fg};opacity:${op};transition:box-shadow .2s,outline .2s;" title="Lote ${l}${info ? ' · ' + info.ie.name + ' · ' + (info.done ? '✓ concluído' : '⏳ pendente') : ' · sem IE atribuída'}">${l}</div>`;
+      const bg   = info ? info.ie.color : 'var(--bg4)';
+      const fg   = info ? '#000' : 'var(--text3)';
+      let op, borderStyle, titleSuffix;
+      if (!info) {
+        op = '0.5'; borderStyle = ''; titleSuffix = ' · sem IE atribuída';
+      } else if (info.done) {
+        op = '0.25'; borderStyle = 'filter:grayscale(60%);'; titleSuffix = ` · ${info.ie.name} · ✓ concluído`;
+      } else if (info.parcial) {
+        const aut = info.ie.lotes_fardos && info.ie.lotes_fardos[l] != null ? info.ie.lotes_fardos[l] : 110;
+        op = '1';
+        borderStyle = `outline:2px dashed ${info.ie.color};outline-offset:-2px;`;
+        titleSuffix = ` · ${info.ie.name} · ⚡ parcial ${info.fardosCarregados}/${aut} fds`;
+      } else {
+        op = '1'; borderStyle = ''; titleSuffix = ` · ${info.ie.name} · ⏳ pendente`;
+      }
+      return `<div class="lb" id="lote-cell-${l}" style="background:${bg};color:${fg};opacity:${op};${borderStyle}transition:box-shadow .2s,outline .2s;" title="Lote ${l}${titleSuffix}">${l}</div>`;
     }).join('');
     return `<div class="mr"><div class="rl">${rua}</div><div class="lr">${boxes}</div></div>`;
   }).join('');
 }
 
+// ========== ORDENAÇÃO DAS IEs ==========
+function toggleIESort() {
+  IE_SORT_ORDER = IE_SORT_ORDER === 'recent' ? 'oldest' : 'recent';
+  localStorage.setItem('viterra_ie_sort', IE_SORT_ORDER);
+  const label = IE_SORT_ORDER === 'recent' ? '🕐 Mais recentes' : '🕰 Mais antigas';
+  // Atualiza label nos dois botões (dash e mapa)
+  ['ie-sort-btn','mapa-sort-btn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = label;
+  });
+  // Re-renderiza a tela atual
+  if (curScreen === 'dash') renderDash();
+  else if (curScreen === 'mapa') renderMapa();
+}
+
+// Atualiza label dos botões ao renderizar (reflete estado atual)
+function updateSortBtnLabels() {
+  const label = IE_SORT_ORDER === 'recent' ? '🕐 Mais recentes' : '🕰 Mais antigas';
+  ['ie-sort-btn','mapa-sort-btn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = label;
+  });
+}
+
 // ========== BUSCA LOTE NO MAPA ==========
-function buscaLote(val) {
-  // Remove destaque anterior
+function _highlightCell(cell, isPending, color) {
+  cell.classList.add('lb-highlight');
+  if (isPending) {
+    // Pendente → pulsa
+    cell.classList.add('lb-highlight-pulse');
+    cell.style.outlineColor = color || '#fff';
+  } else {
+    // Concluído → destaque estático discreto
+    cell.style.outline = `2px solid ${color || 'rgba(255,255,255,.45)'}`;
+    cell.style.boxShadow = `0 0 0 3px ${color ? color + '33' : 'rgba(255,255,255,.12)'}`;
+    cell.style.position = 'relative';
+    cell.style.zIndex = '10';
+    cell.style.opacity = cell.style.opacity || '1';
+  }
+}
+
+function _clearHighlights() {
   document.querySelectorAll('.lb-highlight').forEach(el => {
-    el.classList.remove('lb-highlight');
+    el.classList.remove('lb-highlight', 'lb-highlight-pulse', 'lb-highlight-pulse-ie');
     el.style.outline = '';
+    el.style.outlineColor = '';
     el.style.boxShadow = '';
     el.style.zIndex = '';
     el.style.position = '';
+    el.style.animation = '';
   });
+}
+
+function buscaLote(val) {
+  _clearHighlights();
 
   const result = document.getElementById('mapa-search-result');
-  const num = parseInt(val);
-  if (!val || isNaN(num)) { result.textContent = ''; return; }
+  if (!val || !val.trim()) { result.textContent = ''; return; }
 
-  const cell = document.getElementById(`lote-cell-${num}`);
-  if (!cell) {
-    result.textContent = `Lote ${num} não encontrado`;
-    result.style.color = 'var(--amber)';
+  const trimmed = val.trim();
+
+  // ── Modo 1: Busca por IE — detecta quando o valor não é numérico/vírgulas
+  const isNumericInput = /^[\d,\s]+$/.test(trimmed);
+  if (!isNumericInput && trimmed.length >= 2) {
+    const query = trimmed.toLowerCase();
+    const matchedIE = IES.find(ie => ie.name.toLowerCase().includes(query));
+    if (matchedIE) {
+      const lotesPendSet = new Set(matchedIE.lotes_pend || []);
+      const lotesAll = [...(matchedIE.lotes_done || []), ...(matchedIE.lotes_pend || [])];
+      let found = 0, firstPendCell = null, firstCell = null;
+
+      lotesAll.forEach(l => {
+        const cell = document.getElementById(`lote-cell-${l}`);
+        if (!cell) return;
+        found++;
+        const isPend = lotesPendSet.has(l);
+        _highlightCell(cell, isPend, matchedIE.color);
+        if (!firstCell) firstCell = cell;
+        if (isPend && !firstPendCell) firstPendCell = cell;
+      });
+
+      // Scroll até o primeiro pendente (ou qualquer lote se todos concluídos)
+      const scrollTarget = firstPendCell || firstCell;
+      if (scrollTarget) scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      const pendCount = (matchedIE.lotes_pend || []).length;
+      const pendTxt = pendCount > 0 ? `⏳ ${pendCount} pendente(s) pulsando` : '✅ todos concluídos';
+      result.textContent = `IE: ${matchedIE.name} · ${found} lote(s) · ${pendTxt}`;
+      result.style.color = pendCount > 0 ? 'var(--amber)' : 'var(--green)';
+      return;
+    }
+    result.textContent = trimmed.length >= 3 ? 'Nenhuma IE encontrada com esse nome' : '';
+    result.style.color = 'var(--text3)';
     return;
   }
 
-  // Destaca a célula
-  cell.classList.add('lb-highlight');
-  cell.style.outline = '2px solid #fff';
-  cell.style.boxShadow = '0 0 0 4px rgba(255,255,255,.35), 0 0 16px rgba(255,255,255,.2)';
-  cell.style.position = 'relative';
-  cell.style.zIndex = '10';
+  // ── Modo 2: Busca por lote(s) — aceita múltiplos separados por vírgula
+  const parts = trimmed.split(',').map(s => s.trim()).filter(s => s !== '');
+  const nums = parts.map(s => parseInt(s)).filter(n => !isNaN(n) && n > 0);
+  if (!nums.length) { result.textContent = ''; return; }
 
-  // Scroll suave até o lote
-  cell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  let found = [], notFound = [], firstCell = null;
 
-  // Mostra info
-  const info = LOTE_IE[num];
-  if (info) {
-    const status = info.done ? '✅ concluído' : '⏳ pendente';
-    result.textContent = `L${num} · ${info.ie.name} · ${status}`;
-    result.style.color = info.done ? 'var(--green)' : 'var(--amber)';
+  nums.forEach(num => {
+    const cell = document.getElementById(`lote-cell-${num}`);
+    if (!cell) { notFound.push(num); return; }
+    found.push(num);
+    const info = LOTE_IE[num];
+    const isPend = info ? !info.done : true; // sem IE → trata como pendente
+    const color = info ? (info.ie.color || '#fff') : '#fff';
+    _highlightCell(cell, isPend, color);
+    if (!firstCell) firstCell = cell;
+  });
+
+  if (firstCell) firstCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // Monta mensagem de resultado
+  if (nums.length === 1) {
+    const num = nums[0];
+    if (!found.length) {
+      result.textContent = `Lote ${num} não encontrado`;
+      result.style.color = 'var(--amber)';
+    } else {
+      const info = LOTE_IE[num];
+      if (info) {
+        const status = info.done ? '✅ concluído' : '⏳ pendente · pulsando';
+        result.textContent = `L${num} · ${info.ie.name} · ${status}`;
+        result.style.color = info.done ? 'var(--green)' : 'var(--amber)';
+      } else {
+        result.textContent = `L${num} · sem IE atribuída`;
+        result.style.color = 'var(--text3)';
+      }
+    }
   } else {
-    result.textContent = `L${num} · sem IE atribuída`;
-    result.style.color = 'var(--text3)';
+    let msg = '';
+    if (found.length) msg += `✅ ${found.length} lote(s) destacado(s): ${found.join(', ')}`;
+    if (notFound.length) msg += `${found.length ? ' · ' : ''}⚠ não encontrado(s): ${notFound.join(', ')}`;
+    result.textContent = msg;
+    result.style.color = notFound.length && !found.length ? 'var(--amber)' : 'var(--green)';
   }
 }
 
 function limparBuscaLote() {
   document.getElementById('mapa-search').value = '';
   document.getElementById('mapa-search-result').textContent = '';
-  document.querySelectorAll('.lb-highlight').forEach(el => {
-    el.classList.remove('lb-highlight');
-    el.style.outline = '';
-    el.style.boxShadow = '';
-    el.style.zIndex = '';
-    el.style.position = '';
-  });
+  _clearHighlights();
 }
 function renderGraf() {
   if (grafOk) return;
