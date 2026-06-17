@@ -1755,8 +1755,12 @@ async function loadFromStorage(silent = false) {
     // A API retorna sempre a versão mais recente
     let d = null;
     try {
-      const apiRes = await fetch(GIST_API_URL, {
-        headers: { 'Accept': 'application/vnd.github+json' }
+      const apiRes = await fetch(GIST_API_URL + '?t=' + Date.now(), {
+        headers: {
+          'Accept': 'application/vnd.github+json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
       });
       if (apiRes.ok) {
         const apiData = await apiRes.json();
@@ -1776,6 +1780,26 @@ async function loadFromStorage(silent = false) {
       if (LOADED_DATA_TS && d.updatedAt && d.updatedAt < LOADED_DATA_TS) {
         if (!silent) showToast('Dados locais já são mais recentes. Nuvem ainda propagando...', 'info');
         return true; // retorna true (ok) mas não sobrescreve
+      }
+      // ── PROTEÇÃO PÓS-IMPORTAÇÃO: se o Gist retornou dados mais antigos que a
+      //    última importação feita neste dispositivo, usa o cache local que tem
+      //    os dados corretos (Gist ainda propagando pelo CDN do GitHub).
+      const lastImportTs = localStorage.getItem('viterra_last_import_ts');
+      if (lastImportTs && d.updatedAt && d.updatedAt < lastImportTs) {
+        const cache = localStorage.getItem('viterra_cache');
+        if (cache) {
+          const cached = JSON.parse(cache);
+          if (!silent) showToast('Nuvem ainda propagando — usando dados locais mais recentes', 'info');
+          IES = cached.IES; CARGAS = cached.CARGAS;
+          if (cached.FILA) FILA = cached.FILA;
+          if (cached.HISTORICO_DIA) HISTORICO_DIA = cached.HISTORICO_DIA;
+          if (cached.MAPA && !Array.isArray(cached.MAPA) && Object.keys(cached.MAPA).length > 0) MAPA = cached.MAPA;
+          if (cached.LOTE_TIPO) LOTE_TIPO = cached.LOTE_TIPO;
+          LOADED_DATA_TS = cached.updatedAt || null;
+          if (IES.length && CARGAS.length) { crossReferenceIEsWithCargas(); rebuildLoteIE(); }
+          document.getElementById('statusDot').innerHTML = `📦 Local · ${new Date(lastImportTs).toLocaleString('pt-BR')}`;
+          return true;
+        }
       }
 
       IES = d.IES;
@@ -3525,7 +3549,9 @@ async function processImport() {
     grafOk = false;
     destroyCharts();
 
-    saveToStorage();
+    await saveToStorage();
+    // Salva timestamp da importação para detectar cache desatualizado ao reabrir
+    localStorage.setItem('viterra_last_import_ts', new Date().toISOString());
     // Se já passou das 19h, atualiza o card do dia com os novos dados importados
     if (new Date().getHours() >= 19) gerarResumoDia();
     setLoading(false);
