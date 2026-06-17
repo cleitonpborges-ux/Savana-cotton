@@ -1665,8 +1665,8 @@ const GIST_ID    = '93c6780309b8e63370777915feb4729d';
 const GIST_FILE  = 'viterra_data.json';
 const ADMIN_PASSWORD = 'viterra2026';
 
-// Token NAO fica no codigo — inserido pelo admin no login, guardado so na memoria
-let GIST_TOKEN = '';
+// Token salvo no localStorage para persistir entre sessões
+let GIST_TOKEN = localStorage.getItem('viterra_gist_token') || '';
 
 // Timestamp dos dados atualmente carregados em memória (evita sobrescrever com dados mais antigos)
 let LOADED_DATA_TS = null;
@@ -3097,6 +3097,60 @@ function buscaLote(val) {
   // ── Modo 1: Busca por IE — detecta quando o valor não é numérico/vírgulas
   const isNumericInput = /^[\d,\s]+$/.test(trimmed);
   if (!isNumericInput && trimmed.length >= 2) {
+
+    // ── Modo 1a: IE,TIPO — ex: "BRZ568/25,313"
+    // Detecta padrão: texto não-numérico seguido de vírgula seguido de texto (tipo)
+    const ieTipoMatch = trimmed.match(/^([A-Za-z][^,]+),(.+)$/);
+    if (ieTipoMatch) {
+      const ieQuery = ieTipoMatch[1].trim().toLowerCase();
+      const tipoQuery = ieTipoMatch[2].trim().toLowerCase();
+      const matchedIE = IES.find(ie => ie.name.toLowerCase().includes(ieQuery));
+
+      if (matchedIE) {
+        const lotesPendSet = new Set(matchedIE.lotes_pend || []);
+        const lotesAll = [...(matchedIE.lotes_done || []), ...(matchedIE.lotes_pend || [])];
+
+        // Filtra apenas os lotes que têm o tipo desejado
+        const lotesFiltrados = lotesAll.filter(l => {
+          const tipo = LOTE_TIPO[l];
+          return tipo && tipo.toString().toLowerCase().includes(tipoQuery);
+        });
+
+        let found = 0, firstPendCell = null, firstCell = null;
+
+        lotesFiltrados.forEach(l => {
+          const cell = document.getElementById(`lote-cell-${l}`);
+          if (!cell) return;
+          found++;
+          const isPend = lotesPendSet.has(l);
+          _highlightCell(cell, isPend, matchedIE.color);
+          if (!firstCell) firstCell = cell;
+          if (isPend && !firstPendCell) firstPendCell = cell;
+        });
+
+        const scrollTarget = firstPendCell || firstCell;
+        if (scrollTarget) scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        if (!found) {
+          result.textContent = `IE: ${matchedIE.name} · nenhum lote com tipo "${ieTipoMatch[2].trim()}"`;
+          result.style.color = 'var(--amber)';
+        } else {
+          const pendCount = lotesFiltrados.filter(l => lotesPendSet.has(l)).length;
+          const pendTxt = pendCount > 0 ? `⏳ ${pendCount} pendente(s) pulsando` : '✅ todos concluídos';
+          result.textContent = `IE: ${matchedIE.name} · tipo ${ieTipoMatch[2].trim()} · ${found} lote(s) · ${pendTxt}`;
+          result.style.color = pendCount > 0 ? 'var(--amber)' : 'var(--green)';
+        }
+        return;
+      }
+      // IE não encontrada — cai para busca de lotes numéricos se tipo for numérico, senão avisa
+      if (!/^\d+$/.test(ieTipoMatch[2].trim())) {
+        result.textContent = `IE "${ieTipoMatch[1].trim()}" não encontrada`;
+        result.style.color = 'var(--amber)';
+        return;
+      }
+    }
+
+    // ── Modo 1b: Busca por IE apenas (sem tipo)
     const query = trimmed.toLowerCase();
     const matchedIE = IES.find(ie => ie.name.toLowerCase().includes(query));
     if (matchedIE) {
@@ -3266,7 +3320,10 @@ function openSettings() {
   // Pede token apenas se ainda nao foi informado nesta sessao
   if (!GIST_TOKEN) {
     const token = prompt('🔑 Token GitHub (para salvar na nuvem):\n\nDeixe em branco para apenas visualizar.');
-    if (token && token.trim()) GIST_TOKEN = token.trim();
+    if (token && token.trim()) {
+      GIST_TOKEN = token.trim();
+      localStorage.setItem('viterra_gist_token', GIST_TOKEN);
+    }
   }
   document.getElementById('settingsOverlay').classList.add('open');
 }
@@ -3502,7 +3559,11 @@ async function refreshFromCloud() {
     curWeek = 0;
     // Re-renderiza a tela atual
     if (curScreen === 'graf') { destroyCharts(); renderGraf(); }
-    else if (curScreen === 'mapa') { renderMapa(); }
+    else if (curScreen === 'mapa') {
+      renderMapa();
+      const mapaSearch = document.getElementById('mapa-search');
+      if (mapaSearch && mapaSearch.value.trim()) buscaLote(mapaSearch.value);
+    }
     else if (curScreen === 'diario') { renderDiario(); }
     else { renderDash(); }
   }
@@ -3555,6 +3616,9 @@ async function init() {
       renderDiario();
     } else if (curScreen === 'mapa') {
       renderMapa();
+      // Re-aplica busca ativa para manter os lotes pulsando
+      const mapaSearch = document.getElementById('mapa-search');
+      if (mapaSearch && mapaSearch.value.trim()) buscaLote(mapaSearch.value);
     } else if (curScreen === 'fila') {
       renderFila();
     }
@@ -4552,6 +4616,7 @@ function deletarCardHistorico(dataIso) {
     const token = prompt('🔑 Token GitHub (para salvar na nuvem):\n\nDeixe em branco para cancelar.');
     if (!token || !token.trim()) return;
     GIST_TOKEN = token.trim();
+    localStorage.setItem('viterra_gist_token', GIST_TOKEN);
   }
   const card = HISTORICO_DIA.find(h => h.data_iso === dataIso);
   if (!card) return;
